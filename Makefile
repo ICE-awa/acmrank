@@ -3,6 +3,7 @@ SHELL := /usr/bin/env bash
 
 .PHONY: bootstrap bootstrap-server bootstrap-web bootstrap-sync
 .PHONY: check check-server check-web check-sync
+.PHONY: infra-up infra-down infra-logs infra-ps infra-check
 .PHONY: fmt-server build-server vet-server test-server test-race-server lint-server
 .PHONY: format-web format-check-web lint-web typecheck-web test-web e2e-web build-web
 
@@ -27,6 +28,21 @@ check-web:
 
 check-sync:
 >bash scripts/sync-check.sh
+
+infra-up:
+>docker compose up -d
+
+infra-down:
+>docker compose down
+
+infra-logs:
+>docker compose logs -f
+
+infra-ps:
+>docker compose ps
+
+infra-check:
+>bash scripts/infra-check.sh
 
 fmt-server:
 >source scripts/dev-env.sh && cd server && go fmt ./...
