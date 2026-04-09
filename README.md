@@ -33,3 +33,12 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
 - 所有脚本都会把 `Go / Corepack / pnpm / Playwright / pip` 的缓存落到仓库根目录下的 `.cache/`，避免依赖宿主机默认 `HOME` 写权限。
 - `scripts/dev-env.sh` 默认把 Playwright 下载连接超时调到 `120000ms`，适配较慢的网络环境。
 - Linux 下运行 Playwright E2E 还需要系统浏览器依赖；当前环境缺少 `libnspr4`，Playwright 额外提示还需要 `libX11-xcb.so.1`、`libasound.so.2`。
+
+## 本地基础设施
+- `compose.yaml` 提供本地开发依赖：`PostgreSQL`、`Redis`、`NATS + JetStream`、`ElasticSearch`。
+- 默认连接参数写在 `.env.example` 中，后续服务接入时可直接复用这些地址和端口。
+- 如果宿主机已有本地数据库或缓存占用了标准端口，可以在 `.env` 中覆盖 `POSTGRES_PORT`、`REDIS_PORT`、`NATS_CLIENT_PORT`、`NATS_MONITOR_PORT`、`ELASTICSEARCH_PORT`。
+- `ElasticSearch` 首次拉取镜像体积较大，本地首次 `docker compose up -d` 可能明显慢于其他三个基础服务。
+- 启动命令：`docker compose up -d` 或 `make infra-up`
+- 停止命令：`docker compose down` 或 `make infra-down`
+- 健康检查：`make infra-check`
