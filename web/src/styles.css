@@ -1,0 +1,23 @@
+@import "tailwindcss";
+
+:root {
+  color: #f8fafc;
+  background: #020617;
+  font-family:
+    "Noto Sans SC", "IBM Plex Sans", "PingFang SC", "Microsoft YaHei",
+    sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+}
