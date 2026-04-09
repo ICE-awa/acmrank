@@ -2,7 +2,7 @@
 
 本目录承载 Docker、Docker Compose 和后续部署资产。
 
-当前已提供本地开发基础设施编排，见仓库根目录 [compose.yaml](/opt/acmrank/compose.yaml)。
+当前已提供本地开发基础设施编排，见仓库根目录 [compose.yaml](../compose.yaml)。
 
 ## 服务清单
 - `PostgreSQL`：默认端口 `5432`
