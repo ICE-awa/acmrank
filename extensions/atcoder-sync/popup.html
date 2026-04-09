@@ -1,0 +1,297 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AtCoder Sync</title>
+    <style>
+      :root {
+        --bg: #f5efe2;
+        --panel: rgba(255, 251, 244, 0.88);
+        --panel-strong: rgba(255, 247, 235, 0.98);
+        --ink: #1b2b4b;
+        --muted: #53627f;
+        --line: rgba(27, 43, 75, 0.12);
+        --primary: #0c68d7;
+        --primary-strong: #074aa8;
+        --accent: #d04f2d;
+        --success: #1d8a5b;
+        --warning: #c87b09;
+        --shadow: 0 18px 40px rgba(27, 43, 75, 0.16);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        width: 400px;
+        min-height: 540px;
+        font-family: "IBM Plex Sans", "Segoe UI", sans-serif;
+        color: var(--ink);
+        background:
+          radial-gradient(circle at top right, rgba(208, 79, 45, 0.16), transparent 38%),
+          radial-gradient(circle at bottom left, rgba(12, 104, 215, 0.14), transparent 44%),
+          linear-gradient(160deg, #f8f3e8 0%, #efe6d1 100%);
+      }
+
+      .shell {
+        padding: 18px;
+      }
+
+      .hero {
+        padding: 18px 18px 14px;
+        border: 1px solid rgba(27, 43, 75, 0.08);
+        border-radius: 20px;
+        background: linear-gradient(135deg, rgba(255, 251, 244, 0.94), rgba(255, 244, 223, 0.88));
+        box-shadow: var(--shadow);
+      }
+
+      .eyebrow {
+        margin: 0 0 8px;
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.05;
+      }
+
+      .subtitle {
+        margin: 10px 0 0;
+        font-size: 13px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+
+      .panel {
+        margin-top: 14px;
+        padding: 14px;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--panel);
+        backdrop-filter: blur(10px);
+      }
+
+      .status-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .status-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 7px 10px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 700;
+        background: rgba(27, 43, 75, 0.06);
+        color: var(--ink);
+      }
+
+      .status-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--warning);
+        box-shadow: 0 0 0 4px rgba(200, 123, 9, 0.16);
+      }
+
+      .status-badge.is-success .status-dot {
+        background: var(--success);
+        box-shadow: 0 0 0 4px rgba(29, 138, 91, 0.16);
+      }
+
+      .status-badge.is-error .status-dot {
+        background: var(--accent);
+        box-shadow: 0 0 0 4px rgba(208, 79, 45, 0.16);
+      }
+
+      .field-grid {
+        display: grid;
+        grid-template-columns: 1fr 120px;
+        gap: 12px;
+      }
+
+      .field {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+
+      .field label {
+        font-size: 12px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      .field input {
+        width: 100%;
+        padding: 11px 12px;
+        border: 1px solid rgba(27, 43, 75, 0.12);
+        border-radius: 12px;
+        outline: none;
+        font-size: 14px;
+        color: var(--ink);
+        background: var(--panel-strong);
+      }
+
+      .field input:focus {
+        border-color: rgba(12, 104, 215, 0.5);
+        box-shadow: 0 0 0 4px rgba(12, 104, 215, 0.12);
+      }
+
+      .actions {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .button-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 12px;
+        padding: 11px 12px;
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 120ms ease, opacity 120ms ease, background 120ms ease;
+      }
+
+      button:hover:not(:disabled) {
+        transform: translateY(-1px);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: default;
+      }
+
+      .primary {
+        color: #fff;
+        background: linear-gradient(135deg, var(--primary), var(--primary-strong));
+      }
+
+      .ghost {
+        color: var(--ink);
+        background: rgba(27, 43, 75, 0.08);
+      }
+
+      .message {
+        min-height: 18px;
+        font-size: 12px;
+        color: var(--muted);
+      }
+
+      .message.is-error {
+        color: var(--accent);
+      }
+
+      .message.is-success {
+        color: var(--success);
+      }
+
+      .summary {
+        margin: 0;
+        white-space: pre-wrap;
+        word-break: break-word;
+        line-height: 1.55;
+        font-size: 12px;
+        color: var(--ink);
+      }
+
+      .json-output {
+        margin: 0;
+        max-height: 220px;
+        overflow: auto;
+        white-space: pre-wrap;
+        word-break: break-word;
+        font-size: 11px;
+        line-height: 1.5;
+        color: var(--ink);
+      }
+
+      .hint {
+        margin-top: 10px;
+        font-size: 11px;
+        line-height: 1.45;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Browser Login Reuse</p>
+        <h1>AtCoder Sync</h1>
+        <p class="subtitle">
+          使用当前浏览器里的 AtCoder 登录态，在官方站点上下文抓取比赛历史、最近提交和最近若干场比赛的 AC 题号。
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="status-row">
+          <div>
+            <strong>登录状态</strong>
+          </div>
+          <div id="loginBadge" class="status-badge">
+            <span class="status-dot"></span>
+            <span id="loginText">检测中</span>
+          </div>
+        </div>
+        <p class="hint">扩展只检测是否存在 `REVEL_SESSION`，不会展示或上传原始 cookie。</p>
+      </section>
+
+      <section class="panel">
+        <div class="field-grid">
+          <div class="field">
+            <label for="username">AtCoder 用户名</label>
+            <input id="username" type="text" placeholder="例如 treneneno" autocomplete="off" />
+          </div>
+          <div class="field">
+            <label for="recentContestCount">最近比赛数</label>
+            <input id="recentContestCount" type="number" min="1" max="10" value="5" />
+          </div>
+        </div>
+
+        <div class="actions">
+          <button id="fetchButton" class="primary">抓取数据</button>
+          <div class="button-row">
+            <button id="copyJsonButton" class="ghost" disabled>复制 JSON</button>
+            <button id="copySolvedButton" class="ghost" disabled>复制 AC 题号</button>
+            <button id="refreshLoginButton" class="ghost">刷新状态</button>
+          </div>
+        </div>
+
+        <p id="message" class="message"></p>
+      </section>
+
+      <section class="panel">
+        <strong>摘要</strong>
+        <pre id="summary" class="summary">尚未抓取。</pre>
+      </section>
+
+      <section class="panel">
+        <strong>结构化结果</strong>
+        <pre id="jsonOutput" class="json-output">{}</pre>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
