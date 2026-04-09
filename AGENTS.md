@@ -18,7 +18,7 @@
   4. `docs/atcoder-extension-sync.md`
   5. `docs/task-breakdown.md`
 - If the docs and the current confirmed requirements conflict, update the docs first, then continue.
-- If the task is part of the full project build-out, select the current implementation target from `docs/task-breakdown.md` before writing code.
+- If the task is part of the full project build-out, select the current implementation round from `docs/task-breakdown.md` before writing code.
 - In user-facing replies, first state your current understanding, then implement.
 - If anything important is ambiguous, ask the user early instead of guessing on high-risk behavior.
 
@@ -113,6 +113,21 @@
 - `Redis` and `ElasticSearch` must never become the only storage location for business facts.
 - `first_ac_at` must be stored explicitly and treated as a first-class fact.
 - Do not move core rating logic out of Go backend services into Python sync workers.
+
+### 5.6 Authentication Rules
+- Backend authentication is fixed to `JWT AT + RT`.
+- Both `AT` and `RT` must be carried in cookies rather than exposed to frontend storage.
+- The default user experience should use silent refresh.
+- Silent refresh must use both:
+  - proactive refresh before access token expiry
+  - passive refresh as a fallback when the frontend receives `401`
+- Cookie design, token rotation, logout, and revocation handling must be implemented consistently with this model.
+- Do not replace this with server-side session-only auth unless the user explicitly changes the requirement.
+
+### 5.7 Migration Rules
+- Database migrations must use `goose`.
+- Schema changes should be expressed as `goose` migrations rather than ad hoc SQL applied manually.
+- Repository setup, CI, and local developer workflows should all assume `goose` as the migration entrypoint.
 
 ## 6. Frontend Rules
 - The default frontend toolchain is:

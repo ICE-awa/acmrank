@@ -23,6 +23,15 @@
 - 同步抓取：`Python`、`httpx`、`curl_cffi`
 - 基础设施：`PostgreSQL`、`Redis`、`NATS + JetStream`、`ElasticSearch`
 - 部署：`Docker`、`Docker Compose`
+- 数据库迁移：`goose`
+
+### 2.3 鉴权固定方案
+- 后端鉴权固定为 `JWT AT + RT`。
+- `AT` 与 `RT` 都放在 `Cookie` 中，不放到前端 `localStorage` 或 `sessionStorage`。
+- 刷新策略固定为“主动刷新 + `401` 被动刷新兜底”：
+  - 主动刷新：在 `AT` 即将过期前刷新
+  - 被动刷新：请求收到 `401` 后尝试刷新并重放一次
+- 登出、撤销、轮换等设计都需要围绕 `AT + RT` 方案展开。
 
 ## 3. 运行单元
 
@@ -96,7 +105,8 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 
 ### 5.2 Redis
 仅用于：
-- Web 会话
+- 鉴权短期状态
+- `RT` 轮换、撤销或相关短期状态
 - 限流
 - 验证码或短期令牌
 - 幂等键
