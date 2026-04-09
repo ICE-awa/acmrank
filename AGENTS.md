@@ -217,6 +217,10 @@ Practical rule:
 - Treat `dev` as the default integration branch unless the user explicitly says otherwise.
 - Do not implement task work directly on long-lived branches such as `main`, `master`, or `dev`.
 - Start each new task from the latest `dev` state on a new branch.
+- Exception:
+  - very small documentation-only fixes may be committed directly on `dev`
+  - very small maintenance work expected to take only one or two commits may also stay on `dev` if the user prefers not to open a separate branch
+- For anything beyond those narrow exceptions, still create a dedicated task branch from `dev`.
 - If `dev` does not exist yet or the branch model is unclear, stop and ask the user before inventing a different workflow.
 - Use branch names that describe the task type, for example:
   - `feature/<topic>`
@@ -232,6 +236,12 @@ Practical rule:
 - At the end of each completed turn, the agent must generate a Git commit message with both:
   - a subject line
   - a non-empty body
+- The commit body must use real paragraph breaks.
+- Do not rely on literal `\n` escape sequences inside a shell string and assume GitHub will render them as newlines.
+- Prefer one of these safe approaches:
+  - multiple `-m` flags
+  - a temporary commit message file
+  - a quoted multi-line message that contains actual newline characters
 - After the work for that turn is complete, the agent must automatically:
   - `git add`
   - `git commit`
