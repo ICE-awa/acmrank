@@ -12,11 +12,14 @@
 
 ## 初始化资源
 - `deploy/postgres/init/01-bootstrap.sql`：初始化 `citext` 和 `pg_trgm` 扩展，供后续用户与搜索功能复用
+- `server/db/migrations/`：业务 schema 的 `goose` 迁移文件，需在基础设施启动后通过 `make migrate-up` 执行
 
 ## 常用命令
 - `docker compose up -d`
 - `docker compose ps`
 - `bash scripts/infra-check.sh`
+- `make migrate-status`
+- `make migrate-up`
 
 ## 端口覆盖
 - 如果宿主机已有服务占用了默认端口，在仓库根目录创建 `.env` 并覆盖对应变量即可，例如 `REDIS_PORT=6380`

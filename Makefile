@@ -4,6 +4,7 @@ SHELL := /usr/bin/env bash
 .PHONY: bootstrap bootstrap-server bootstrap-web bootstrap-sync
 .PHONY: check check-server check-web check-sync
 .PHONY: infra-up infra-down infra-logs infra-ps infra-check
+.PHONY: migrate-status migrate-up migrate-down migrate-reset
 .PHONY: fmt-server build-server vet-server test-server test-race-server lint-server
 .PHONY: format-web format-check-web lint-web typecheck-web test-web e2e-web build-web
 
@@ -43,6 +44,18 @@ infra-ps:
 
 infra-check:
 >bash scripts/infra-check.sh
+
+migrate-status:
+>bash scripts/server-migrate.sh status
+
+migrate-up:
+>bash scripts/server-migrate.sh up
+
+migrate-down:
+>bash scripts/server-migrate.sh down
+
+migrate-reset:
+>bash scripts/server-migrate.sh reset
 
 fmt-server:
 >source scripts/dev-env.sh && cd server && go fmt ./...

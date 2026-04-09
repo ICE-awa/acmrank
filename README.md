@@ -42,3 +42,12 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
 - 启动命令：`docker compose up -d` 或 `make infra-up`
 - 停止命令：`docker compose down` 或 `make infra-down`
 - 健康检查：`make infra-check`
+
+## 数据库迁移
+- 后端 schema 迁移固定使用 `goose`，迁移文件位于 `server/db/migrations/`。
+- 执行迁移前先启动本地 `PostgreSQL`，例如 `docker compose up -d postgres` 或 `make infra-up`。
+- 迁移命令会先加载仓库根目录的 `.env.example`，再覆盖 `.env`，因此本地端口改动后不需要再手工改命令。
+- 查看迁移状态：`make migrate-status`
+- 执行全部迁移：`make migrate-up`
+- 回滚一版迁移：`make migrate-down`
+- 重置并重放迁移：`make migrate-reset`
