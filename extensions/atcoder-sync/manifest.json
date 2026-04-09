@@ -1,0 +1,34 @@
+{
+  "manifest_version": 3,
+  "name": "AtCoder Sync",
+  "version": "0.1.0",
+  "description": "Use the browser's existing AtCoder login state to fetch contest history and submissions.",
+  "minimum_chrome_version": "114",
+  "permissions": [
+    "cookies",
+    "storage",
+    "tabs",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://atcoder.jp/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "AtCoder Sync",
+    "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://atcoder.jp/*"
+      ],
+      "js": [
+        "content-script.js"
+      ],
+      "run_at": "document_idle"
+    }
+  ]
+}

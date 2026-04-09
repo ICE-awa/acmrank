@@ -26,6 +26,7 @@ temp/
 
 # Codex local artifacts
 .codex*
+.git_ssh/
 
 # Node / Frontend
 node_modules/
