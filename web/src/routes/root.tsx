@@ -8,6 +8,7 @@ type PreviewOption = {
   eyebrow: string;
   mood: string;
   recommendation: string;
+  accent: string;
   palette: string[];
 };
 
@@ -19,6 +20,8 @@ type Tokens = {
   text: string;
   textMuted: string;
   textSoft: string;
+  accent: string;
+  accentSoft: string;
   chart: string;
   heatmap: [string, string, string, string, string];
 };
@@ -31,7 +34,8 @@ const previewOptions: PreviewOption[] = [
     mood: "深灰底、强对齐、偏排行榜与数据档案页。",
     recommendation:
       "如果你希望正式站点更稳、更冷、更像长期维护的训练系统，这套最接近。",
-    palette: ["#111111", "#1f1f1f", "#d4d4d4", "#f5f5f5"],
+    accent: "#6f8f72",
+    palette: ["#111111", "#1f1f1f", "#d4d4d4", "#f5f5f5", "#6f8f72"],
   },
   {
     id: "paper-column",
@@ -40,7 +44,8 @@ const previewOptions: PreviewOption[] = [
     mood: "白底黑字、报刊式排版、偏公开档案与人物陈列。",
     recommendation:
       "如果你希望公开页更像校内竞赛档案册，而不是后台系统，这套更合适。",
-    palette: ["#ffffff", "#f5f5f5", "#262626", "#737373"],
+    accent: "#5f6f8a",
+    palette: ["#ffffff", "#f5f5f5", "#262626", "#737373", "#5f6f8a"],
   },
   {
     id: "steel-frame",
@@ -49,7 +54,8 @@ const previewOptions: PreviewOption[] = [
     mood: "中性灰、模块规整、偏正式产品界面。",
     recommendation:
       "如果你想让正式前端尽量中庸稳定，不强调情绪，这套最容易长期统一。",
-    palette: ["#171717", "#404040", "#a3a3a3", "#fafafa"],
+    accent: "#7d5e66",
+    palette: ["#171717", "#404040", "#a3a3a3", "#fafafa", "#7d5e66"],
   },
 ] as const;
 
@@ -181,7 +187,10 @@ function MetricGrid({
         >
           <p
             className="text-[11px] uppercase tracking-[0.24em]"
-            style={{ color: tokens.textMuted }}
+            style={{
+              color:
+                card.label === "SCNU Rating" ? tokens.accent : tokens.textMuted,
+            }}
           >
             {card.label}
           </p>
@@ -223,7 +232,9 @@ function RankingList({ tokens }: { tokens: Tokens }) {
           <span
             className="text-right"
             style={{
-              color: row.delta.startsWith("+") ? tokens.text : tokens.textSoft,
+              color: row.delta.startsWith("+")
+                ? tokens.accent
+                : tokens.textSoft,
             }}
           >
             {row.delta}
@@ -253,7 +264,9 @@ function ProblemTable({ tokens }: { tokens: Tokens }) {
               {problem.contest}
             </p>
           </div>
-          <p className="text-sm sm:text-right">{problem.rating}</p>
+          <p className="text-sm sm:text-right" style={{ color: tokens.accent }}>
+            {problem.rating}
+          </p>
           <p
             className="text-sm sm:text-right"
             style={{ color: tokens.textSoft }}
@@ -302,7 +315,7 @@ function TrendChart({ tokens }: { tokens: Tokens }) {
           strokeDasharray="6 8"
         />
       ))}
-      <path d={area} fill={tokens.panelAlt} />
+      <path d={area} fill={tokens.accentSoft} />
       <polyline
         fill="none"
         points={line}
@@ -346,8 +359,10 @@ function InkStonePreview() {
     text: "#f5f5f5",
     textMuted: "#a3a3a3",
     textSoft: "#737373",
-    chart: "#f5f5f5",
-    heatmap: ["#171717", "#262626", "#404040", "#737373", "#f5f5f5"],
+    accent: "#6f8f72",
+    accentSoft: "rgba(111, 143, 114, 0.16)",
+    chart: "#6f8f72",
+    heatmap: ["#171717", "#232323", "#2f3932", "#506358", "#6f8f72"],
   };
 
   return (
@@ -363,7 +378,7 @@ function InkStonePreview() {
         <header className="border-b pb-6" style={{ borderColor: tokens.line }}>
           <p
             className="text-[11px] uppercase tracking-[0.3em]"
-            style={{ color: tokens.textMuted }}
+            style={{ color: tokens.accent }}
           >
             Ink Stone
           </p>
@@ -556,8 +571,10 @@ function PaperColumnPreview() {
     text: "#171717",
     textMuted: "#525252",
     textSoft: "#737373",
-    chart: "#171717",
-    heatmap: ["#ffffff", "#f5f5f5", "#d4d4d4", "#a3a3a3", "#171717"],
+    accent: "#5f6f8a",
+    accentSoft: "rgba(95, 111, 138, 0.12)",
+    chart: "#5f6f8a",
+    heatmap: ["#ffffff", "#f5f5f5", "#d8dde6", "#9eabbe", "#5f6f8a"],
   };
 
   return (
@@ -573,7 +590,7 @@ function PaperColumnPreview() {
         <header className="border-b pb-6" style={{ borderColor: tokens.line }}>
           <p
             className="text-[11px] uppercase tracking-[0.3em]"
-            style={{ color: tokens.textMuted }}
+            style={{ color: tokens.accent }}
           >
             Paper Column
           </p>
@@ -785,8 +802,10 @@ function SteelFramePreview() {
     text: "#171717",
     textMuted: "#525252",
     textSoft: "#737373",
-    chart: "#262626",
-    heatmap: ["#fafafa", "#e5e5e5", "#d4d4d4", "#737373", "#262626"],
+    accent: "#7d5e66",
+    accentSoft: "rgba(125, 94, 102, 0.12)",
+    chart: "#7d5e66",
+    heatmap: ["#fafafa", "#e7e2e3", "#d5c7cb", "#ae9198", "#7d5e66"],
   };
 
   return (
@@ -805,7 +824,7 @@ function SteelFramePreview() {
         >
           <p
             className="text-[11px] uppercase tracking-[0.3em]"
-            style={{ color: tokens.textMuted }}
+            style={{ color: tokens.accent }}
           >
             Steel Frame
           </p>
@@ -1006,11 +1025,14 @@ function PreviewButton({
       aria-pressed={active}
       className="w-full rounded-[22px] border px-4 py-4 text-left transition"
       style={{
-        borderColor: active ? "#737373" : "#2f2f2f",
+        borderColor: active ? option.accent : "#2f2f2f",
         background: active ? "#262626" : "#171717",
       }}
     >
-      <p className="text-[11px] uppercase tracking-[0.24em] text-neutral-500">
+      <p
+        className="text-[11px] uppercase tracking-[0.24em]"
+        style={{ color: active ? option.accent : "#737373" }}
+      >
         {option.eyebrow}
       </p>
       <h2 className="mt-3 text-xl font-semibold text-neutral-50">
@@ -1053,7 +1075,7 @@ export function RootPage() {
             ACMRank Frontend Preview Lab
           </h1>
           <p className="mt-3 text-sm leading-7 text-neutral-400">
-            按你的反馈，这一轮只看黑白灰和经典网页语气，不再用高饱和展示页。你选定后，我再把风格约束写入
+            按你的反馈，这一轮改成黑白灰主骨架，加低饱和主题色点缀。你选定后，我再把风格约束写入
             <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-200">
               AGENTS.md
             </code>
