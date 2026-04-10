@@ -1,6 +1,6 @@
 import { useState, type CSSProperties, type ReactNode } from "react";
 
-type PreviewId = "ink-stone" | "paper-column" | "steel-frame";
+type PreviewId = "portal" | "profile" | "ranking";
 
 type PreviewOption = {
   id: PreviewId;
@@ -26,51 +26,92 @@ type Tokens = {
   heatmap: [string, string, string, string, string];
 };
 
+type MetricCard = {
+  label: string;
+  value: string;
+  detail: string;
+  highlight?: boolean;
+};
+
+type ProblemRow = {
+  id: string;
+  contest: string;
+  rating: string;
+  time: string;
+};
+
 const previewOptions: PreviewOption[] = [
   {
-    id: "ink-stone",
-    label: "Luogu Portal",
-    eyebrow: "Luogu palette / portal layout",
-    mood: "更像首页门户，模块活跃，适合放公告、排行榜、个人入口。",
-    recommendation: "如果你希望首页看起来更有生气，这一版最适合继续深化。",
+    id: "portal",
+    label: "门户布局",
+    eyebrow: "首页入口优先",
+    mood: "公告、榜单、个人入口在同一页，节奏更活。",
+    recommendation: "适合作为默认落地页，先看全站动态再下钻。",
     accent: "#3498db",
-    palette: ["#34495e", "#e9eaec", "#ffffff", "#5c5c5c", "#3498db"],
+    palette: ["#34495e", "#f3f5f7", "#ffffff", "#e74c3c", "#2ea043"],
   },
   {
-    id: "paper-column",
-    label: "Luogu Profile",
-    eyebrow: "Luogu palette / profile layout",
-    mood: "更像用户个人页，左侧人物信息，右侧图表和题目视图。",
-    recommendation: "如果你想先把用户公开页做顺，这一版会更接近正式主产品。",
+    id: "profile",
+    label: "个人布局",
+    eyebrow: "公开主页优先",
+    mood: "把个人资料、曲线、热力图作为第一视觉层。",
+    recommendation: "适合先完成公开个人页这条主链路。",
     accent: "#3498db",
-    palette: ["#34495e", "#e9eaec", "#ffffff", "#5c5c5c", "#3498db"],
+    palette: ["#34495e", "#f6f8fa", "#ffffff", "#f39c12", "#2ea043"],
   },
   {
-    id: "steel-frame",
-    label: "Luogu Rankings",
-    eyebrow: "Luogu palette / ranking layout",
-    mood: "更像榜单和数据总览页，适合核心排行榜与趋势展示。",
-    recommendation:
-      "如果你想把评分、变化值和榜单做成站点主视觉，这一版更合适。",
+    id: "ranking",
+    label: "榜单布局",
+    eyebrow: "排行榜优先",
+    mood: "榜单表格和走势占主屏，信息关系最直接。",
+    recommendation: "适合作为站点核心页面，突出竞争和变化值。",
     accent: "#3498db",
-    palette: ["#34495e", "#e9eaec", "#ffffff", "#5c5c5c", "#3498db"],
+    palette: ["#34495e", "#f3f5f7", "#ffffff", "#9b59b6", "#2ea043"],
   },
+];
+
+const luoguTokens: Tokens = {
+  page: "#f3f5f7",
+  panel: "#ffffff",
+  panelAlt: "#f8fbff",
+  line: "#d8e1e8",
+  text: "#34495e",
+  textMuted: "#5c6b78",
+  textSoft: "#8191a0",
+  accent: "#3498db",
+  accentSoft: "rgba(52, 152, 219, 0.12)",
+  chart: "#3498db",
+  heatmap: ["#ffffff", "#ebf7e8", "#cfe9d1", "#78c27d", "#2ea043"],
+};
+
+const modulePills = [
+  { label: "Problems", color: "#e74c3c" },
+  { label: "Training", color: "#f39c12" },
+  { label: "Contests", color: "#9b59b6" },
+  { label: "Teams", color: "#3498db" },
+  { label: "Discuss", color: "#16a085" },
 ] as const;
 
-const metricCards = [
-  { label: "SCNU Rating", value: "2476", detail: "较昨日 +46" },
-  { label: "Today New AC", value: "12", detail: "每日 00:00 清零" },
-  { label: "Verified Accounts", value: "7", detail: "CF / AT / 洛谷" },
-] as const;
+const metricCards: MetricCard[] = [
+  {
+    label: "SCNU Rating",
+    value: "2476",
+    detail: "较昨日 +46",
+    highlight: true,
+  },
+  { label: "今日新 AC", value: "12", detail: "每日 00:00 清零" },
+  { label: "已验证账号", value: "7", detail: "CF / AT / 洛谷" },
+];
 
 const leaderboardRows = [
   { rank: "01", user: "treneneno", score: "2476", delta: "+46" },
   { rank: "02", user: "ice", score: "2431", delta: "+19" },
   { rank: "03", user: "sherry", score: "2388", delta: "+11" },
   { rank: "04", user: "frost", score: "2340", delta: "-6" },
+  { rank: "05", user: "lina", score: "2302", delta: "+3" },
 ] as const;
 
-const problemRows = [
+const problemRows: ProblemRow[] = [
   {
     id: "CF-2048C",
     contest: "Codeforces 2048",
@@ -84,12 +125,24 @@ const problemRows = [
     time: "2026-04-08 20:57",
   },
   { id: "P3373", contest: "洛谷", rating: "LG", time: "2026-04-08 18:03" },
-] as const;
+  {
+    id: "CF-2039D",
+    contest: "Codeforces 2039",
+    rating: "1700",
+    time: "2026-04-07 23:11",
+  },
+];
 
 const awardRows = [
   "ICPC EC Final 2025 银奖",
   "广东省赛 2025 金奖",
   "校队选拔训练营 2026 A 组",
+] as const;
+
+const platformRows = [
+  { label: "Codeforces", solved: 634, ratio: 0.52, color: "#3498db" },
+  { label: "AtCoder", solved: 428, ratio: 0.35, color: "#f39c12" },
+  { label: "洛谷", solved: 154, ratio: 0.13, color: "#16a085" },
 ] as const;
 
 const heatmapWeeks = [
@@ -111,7 +164,6 @@ const ratingTrend = [
 
 const fontStacks = {
   sans: '"IBM Plex Sans", "Noto Sans SC", "PingFang SC", sans-serif',
-  serif: '"Source Han Serif SC", "Noto Serif SC", "Songti SC", serif',
   mono: '"IBM Plex Mono", "JetBrains Mono", monospace',
 } as const;
 
@@ -125,13 +177,13 @@ function buildChartGeometry(
   const max = Math.max(...values);
   const range = max - min || 1;
   const step = (width - padding * 2) / Math.max(values.length - 1, 1);
+
   const points = values.map((value, index) => {
     const x = padding + step * index;
     const y =
       height -
       padding -
       ((value - min) / range) * Math.max(height - padding * 2, 1);
-
     return { x, y };
   });
 
@@ -147,7 +199,7 @@ function buildChartGeometry(
   };
 }
 
-function Stage({
+function Panel({
   children,
   className,
   style,
@@ -157,51 +209,161 @@ function Stage({
   style?: CSSProperties;
 }) {
   return (
-    <section
-      className={`rounded-[32px] border shadow-[0_24px_80px_rgba(0,0,0,0.12)] ${className ?? ""}`}
+    <article
+      className={`rounded-2xl border p-4 sm:p-5 ${className ?? ""}`}
       style={style}
+    >
+      {children}
+    </article>
+  );
+}
+
+function Stage({ children, tokens }: { children: ReactNode; tokens: Tokens }) {
+  return (
+    <section
+      className="overflow-hidden rounded-[28px] border shadow-[0_24px_56px_rgba(0,0,0,0.12)]"
+      style={{
+        background: tokens.page,
+        borderColor: tokens.line,
+        color: tokens.text,
+        fontFamily: fontStacks.sans,
+      }}
     >
       {children}
     </section>
   );
 }
 
-function MetricGrid({
+function TopBar({ tokens }: { tokens: Tokens }) {
+  return (
+    <header
+      className="border-b px-5 py-4 sm:px-6"
+      style={{ borderColor: tokens.line, background: tokens.panel }}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <span
+            className="inline-flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-sm font-semibold text-white"
+            style={{ background: tokens.accent }}
+          >
+            A
+          </span>
+          <div>
+            <p className="text-sm font-semibold">ACMRank</p>
+            <p className="text-xs" style={{ color: tokens.textSoft }}>
+              Luogu 色感 + 中性色骨架
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          {modulePills.map((pill) => (
+            <span
+              key={pill.label}
+              className="rounded-full px-3 py-1 text-white"
+              style={{ background: pill.color }}
+            >
+              {pill.label}
+            </span>
+          ))}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function PreviewSidebar({
+  title,
+  items,
   tokens,
-  compact = false,
 }: {
+  title: string;
+  items: string[];
   tokens: Tokens;
-  compact?: boolean;
 }) {
   return (
-    <div
-      className={`grid gap-3 ${compact ? "sm:grid-cols-3" : "lg:grid-cols-3"}`}
+    <aside
+      className="h-fit rounded-2xl border p-3"
+      style={{ background: tokens.panel, borderColor: tokens.line }}
     >
-      {metricCards.map((card) => (
-        <article
+      <p
+        className="px-2 text-[11px] uppercase tracking-[0.28em]"
+        style={{ color: tokens.textSoft }}
+      >
+        导航
+      </p>
+      <h3 className="mt-3 px-2 text-lg font-semibold">{title}</h3>
+      <nav className="mt-3 space-y-2">
+        {items.map((item, index) => (
+          <a
+            key={item}
+            href="#"
+            className="flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm no-underline transition-[background-color,border-color] duration-200"
+            style={{
+              borderColor: index === 0 ? tokens.accent : tokens.line,
+              background: index === 0 ? tokens.accentSoft : tokens.panelAlt,
+              color: index === 0 ? tokens.text : tokens.textMuted,
+            }}
+          >
+            <span>{item}</span>
+            <span
+              style={{ color: index === 0 ? tokens.accent : tokens.textSoft }}
+            >
+              {index === 0 ? "●" : "○"}
+            </span>
+          </a>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+
+function SectionHead({
+  title,
+  detail,
+  tokens,
+}: {
+  title: string;
+  detail?: string;
+  tokens: Tokens;
+}) {
+  return (
+    <div className="mb-4 flex items-end justify-between gap-3">
+      <h3 className="text-xl font-semibold sm:text-2xl">{title}</h3>
+      {detail ? (
+        <span className="text-sm" style={{ color: tokens.textSoft }}>
+          {detail}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function MetricGrid({
+  cards,
+  tokens,
+}: {
+  cards: MetricCard[];
+  tokens: Tokens;
+}) {
+  return (
+    <div className="grid gap-3 sm:grid-cols-3">
+      {cards.map((card) => (
+        <div
           key={card.label}
-          className="rounded-[20px] border p-4"
+          className="rounded-xl border px-4 py-3"
           style={{ background: tokens.panelAlt, borderColor: tokens.line }}
         >
           <p
-            className="text-[11px] uppercase tracking-[0.24em]"
-            style={{
-              color:
-                card.label === "SCNU Rating" ? tokens.accent : tokens.textMuted,
-            }}
+            className="text-[11px] uppercase tracking-[0.2em]"
+            style={{ color: card.highlight ? tokens.accent : tokens.textMuted }}
           >
             {card.label}
           </p>
-          <p
-            className="mt-3 text-3xl font-semibold"
-            style={{ color: tokens.text }}
-          >
-            {card.value}
-          </p>
-          <p className="mt-2 text-sm" style={{ color: tokens.textSoft }}>
+          <p className="mt-2 text-2xl font-semibold">{card.value}</p>
+          <p className="mt-1 text-sm" style={{ color: tokens.textSoft }}>
             {card.detail}
           </p>
-        </article>
+        </div>
       ))}
     </div>
   );
@@ -209,16 +371,12 @@ function MetricGrid({
 
 function RankingList({ tokens }: { tokens: Tokens }) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-2.5">
       {leaderboardRows.map((row) => (
         <div
           key={row.rank}
-          className="grid grid-cols-[40px_minmax(0,1fr)_72px_56px] items-center gap-3 rounded-[16px] border px-3 py-3 text-sm"
-          style={{
-            background: tokens.panelAlt,
-            borderColor: tokens.line,
-            color: tokens.text,
-          }}
+          className="grid grid-cols-[42px_minmax(0,1fr)_74px_56px] items-center gap-3 rounded-xl border px-3 py-2.5 text-sm"
+          style={{ background: tokens.panelAlt, borderColor: tokens.line }}
         >
           <span
             style={{ color: tokens.textMuted, fontFamily: fontStacks.mono }}
@@ -229,11 +387,7 @@ function RankingList({ tokens }: { tokens: Tokens }) {
           <span className="text-right">{row.score}</span>
           <span
             className="text-right"
-            style={{
-              color: row.delta.startsWith("+")
-                ? tokens.accent
-                : tokens.textSoft,
-            }}
+            style={{ color: row.delta.startsWith("+") ? "#2ea043" : "#d94848" }}
           >
             {row.delta}
           </span>
@@ -243,18 +397,20 @@ function RankingList({ tokens }: { tokens: Tokens }) {
   );
 }
 
-function ProblemTable({ tokens }: { tokens: Tokens }) {
+function ProblemTable({
+  tokens,
+  rows = problemRows,
+}: {
+  tokens: Tokens;
+  rows?: ProblemRow[];
+}) {
   return (
-    <div className="space-y-3">
-      {problemRows.map((problem) => (
+    <div className="space-y-2.5">
+      {rows.map((problem) => (
         <div
-          key={problem.id}
-          className="grid gap-3 rounded-[16px] border px-4 py-3 sm:grid-cols-[1fr_84px_148px]"
-          style={{
-            background: tokens.panelAlt,
-            borderColor: tokens.line,
-            color: tokens.text,
-          }}
+          key={`${problem.id}-${problem.time}`}
+          className="grid gap-2 rounded-xl border px-3 py-3 sm:grid-cols-[1fr_80px_150px]"
+          style={{ background: tokens.panelAlt, borderColor: tokens.line }}
         >
           <div>
             <p className="text-sm font-medium">{problem.id}</p>
@@ -277,14 +433,30 @@ function ProblemTable({ tokens }: { tokens: Tokens }) {
   );
 }
 
+function Awards({ tokens }: { tokens: Tokens }) {
+  return (
+    <div className="space-y-2.5">
+      {awardRows.map((award) => (
+        <div
+          key={award}
+          className="rounded-xl border px-3 py-2.5 text-sm"
+          style={{ background: tokens.panelAlt, borderColor: tokens.line }}
+        >
+          {award}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function Heatmap({ tokens }: { tokens: Tokens }) {
   return (
-    <div className="grid grid-flow-col grid-rows-7 gap-2 overflow-x-auto">
+    <div className="grid grid-flow-col grid-rows-7 gap-1.5 overflow-x-auto py-0.5">
       {heatmapWeeks.flatMap((week, weekIndex) =>
         week.map((value, dayIndex) => (
           <div
             key={`${weekIndex}-${dayIndex}`}
-            className="h-[18px] w-[18px] rounded-[5px] border"
+            className="h-4 w-4 rounded-[4px] border"
             style={{
               background: tokens.heatmap[value],
               borderColor: tokens.line,
@@ -298,11 +470,11 @@ function Heatmap({ tokens }: { tokens: Tokens }) {
 }
 
 function TrendChart({ tokens }: { tokens: Tokens }) {
-  const { points, line, area } = buildChartGeometry(ratingTrend, 420, 220);
+  const { points, line, area } = buildChartGeometry(ratingTrend, 420, 216);
 
   return (
-    <svg viewBox="0 0 420 220" className="h-56 w-full">
-      {[56, 104, 152].map((y) => (
+    <svg viewBox="0 0 420 216" className="h-52 w-full">
+      {[54, 98, 142].map((y) => (
         <line
           key={y}
           x1="16"
@@ -318,724 +490,277 @@ function TrendChart({ tokens }: { tokens: Tokens }) {
         fill="none"
         points={line}
         stroke={tokens.chart}
-        strokeWidth="3.5"
+        strokeWidth="3"
         strokeLinecap="round"
       />
       {points.map(({ x, y }) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="4" fill={tokens.chart} />
+        <circle key={`${x}-${y}`} cx={x} cy={y} r="3.5" fill={tokens.chart} />
       ))}
     </svg>
   );
 }
 
-function Awards({ tokens }: { tokens: Tokens }) {
+function PlatformBreakdown({ tokens }: { tokens: Tokens }) {
   return (
     <div className="space-y-3">
-      {awardRows.map((award) => (
-        <div
-          key={award}
-          className="rounded-[16px] border px-4 py-3 text-sm"
-          style={{
-            background: tokens.panelAlt,
-            borderColor: tokens.line,
-            color: tokens.text,
-          }}
-        >
-          {award}
+      {platformRows.map((row) => (
+        <div key={row.label} className="space-y-1.5">
+          <div className="flex items-center justify-between text-sm">
+            <span>{row.label}</span>
+            <span style={{ color: tokens.textMuted }}>{row.solved}</span>
+          </div>
+          <div
+            className="h-2 overflow-hidden rounded-full"
+            style={{ background: "#e8edf2" }}
+          >
+            <div
+              className="h-full rounded-full"
+              style={{ width: `${row.ratio * 100}%`, background: row.color }}
+            />
+          </div>
         </div>
       ))}
     </div>
   );
 }
 
-function InkStonePreview() {
-  const tokens: Tokens = {
-    page: "#e9eaec",
-    panel: "#ffffff",
-    panelAlt: "#f5f8fb",
-    line: "#d8e1e8",
-    text: "#34495e",
-    textMuted: "#5c5c5c",
-    textSoft: "#7a7a7a",
-    accent: "#3498db",
-    accentSoft: "rgba(52, 152, 219, 0.12)",
-    chart: "#3498db",
-    heatmap: ["#ffffff", "#ebf5fc", "#cde4f5", "#7dbbe7", "#3498db"],
-  };
+function DashboardLayout({
+  heading,
+  description,
+  sidebarTitle,
+  sidebarItems,
+  children,
+}: {
+  heading: string;
+  description: string;
+  sidebarTitle: string;
+  sidebarItems: string[];
+  children: ReactNode;
+}) {
+  const tokens = luoguTokens;
 
   return (
-    <Stage
-      className="border-neutral-300"
-      style={{
-        background: tokens.page,
-        color: tokens.text,
-        fontFamily: fontStacks.sans,
-      }}
-    >
-      <div className="bg-[#3498db] px-6 py-4 text-white">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-lg font-semibold">ACMRank</span>
-            <span className="text-sm text-white/85">Portal</span>
-            <span className="text-sm text-white/85">Rankings</span>
-            <span className="text-sm text-white/85">Profiles</span>
-          </div>
-          <span className="rounded-full bg-white/16 px-3 py-1 text-xs">
-            Luogu palette
-          </span>
-        </div>
-      </div>
-      <div className="p-6 sm:p-8">
-        <header className="border-b pb-6" style={{ borderColor: tokens.line }}>
-          <p
-            className="text-[11px] uppercase tracking-[0.3em]"
-            style={{ color: tokens.accent }}
-          >
-            Luogu Portal
-          </p>
-          <div className="mt-4 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
-            <div>
-              <h2 className="text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-                保留洛谷这套蓝灰白颜色，但把首页做得更像“活的门户”。
-              </h2>
-              <p
-                className="mt-4 max-w-3xl text-sm leading-7"
-                style={{ color: tokens.textMuted }}
-              >
-                这一版不再做沉闷的大卡片拼盘，而是参考洛谷那种更有流动感的首页。蓝色做主轴，白卡承载内容，灰底负责留白和呼吸。
-              </p>
-              <div className="mt-5 flex flex-wrap gap-2 text-xs">
-                {[
-                  ["Problems", "#e74c3c"],
-                  ["Trainings", "#f39c12"],
-                  ["Contests", "#9b59b6"],
-                  ["Teams", "#3498db"],
-                  ["Discuss", "#34495e"],
-                ].map(([label, color]) => (
-                  <span
-                    key={label}
-                    className="rounded-full px-3 py-1.5 text-white"
-                    style={{ background: color }}
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <MetricGrid tokens={tokens} compact />
-          </div>
-        </header>
+    <Stage tokens={tokens}>
+      <TopBar tokens={tokens} />
 
-        <div className="mt-6 grid gap-5 xl:grid-cols-[1.4fr_0.95fr]">
-          <div className="space-y-5">
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p
-                    className="text-[11px] uppercase tracking-[0.24em]"
-                    style={{ color: tokens.accent }}
-                  >
-                    Campus Portal
-                  </p>
-                  <h3 className="mt-3 text-3xl font-semibold">
-                    公告、趋势、榜单和个人入口可以共存，而且不显得堵。
-                  </h3>
-                </div>
-                <div className="flex flex-wrap gap-2 text-xs">
-                  {["Announcement", "Ranking", "Profile", "Awards"].map(
-                    (item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border px-3 py-1.5"
-                        style={{
-                          borderColor: tokens.line,
-                          background: tokens.panelAlt,
-                          color: tokens.textMuted,
-                        }}
-                      >
-                        {item}
-                      </span>
-                    ),
-                  )}
-                </div>
-              </div>
-              <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
-                <div
-                  className="rounded-[22px] border p-4"
-                  style={{
-                    background: tokens.panelAlt,
-                    borderColor: tokens.line,
-                  }}
-                >
-                  <div className="mb-4 flex items-end justify-between">
-                    <p
-                      className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.accent }}
-                    >
-                      SCNU Rating Curve
-                    </p>
-                    <span
-                      className="text-sm"
-                      style={{ color: tokens.textSoft }}
-                    >
-                      首页趋势卡
-                    </span>
-                  </div>
-                  <TrendChart tokens={tokens} />
-                </div>
-                <div
-                  className="rounded-[22px] border p-4"
-                  style={{
-                    background: tokens.panelAlt,
-                    borderColor: tokens.line,
-                  }}
-                >
-                  <div className="mb-4 flex items-end justify-between">
-                    <p
-                      className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.accent }}
-                    >
-                      Daily New AC
-                    </p>
-                    <span
-                      className="text-sm"
-                      style={{ color: tokens.textSoft }}
-                    >
-                      热力图入口
-                    </span>
-                  </div>
-                  <Heatmap tokens={tokens} />
-                </div>
-              </div>
-            </article>
+      <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[228px_minmax(0,1fr)]">
+        <PreviewSidebar
+          title={sidebarTitle}
+          items={sidebarItems}
+          tokens={tokens}
+        />
 
-            <div className="grid gap-5 lg:grid-cols-[0.95fr_1.05fr]">
-              <article
-                className="rounded-[26px] border p-5"
-                style={{ background: tokens.panel, borderColor: tokens.line }}
-              >
-                <p
-                  className="text-[11px] uppercase tracking-[0.24em]"
-                  style={{ color: tokens.accent }}
-                >
-                  Ranking Module
-                </p>
-                <h4 className="mt-3 text-2xl font-semibold">Campus ranking</h4>
-                <div className="mt-5">
-                  <RankingList tokens={tokens} />
-                </div>
-              </article>
-              <article
-                className="rounded-[26px] border p-5"
-                style={{ background: tokens.panel, borderColor: tokens.line }}
-              >
-                <p
-                  className="text-[11px] uppercase tracking-[0.24em]"
-                  style={{ color: tokens.accent }}
-                >
-                  Problem Entry
-                </p>
-                <h4 className="mt-3 text-2xl font-semibold">
-                  Latest solved set
-                </h4>
-                <div className="mt-5">
-                  <ProblemTable tokens={tokens} />
-                </div>
-              </article>
-            </div>
-          </div>
-
-          <div className="space-y-5">
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <p
-                className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.accent }}
-              >
-                Why This Works
-              </p>
-              <ul
-                className="mt-4 space-y-3 text-sm leading-7"
-                style={{ color: tokens.textMuted }}
-              >
-                <li>首页更像站点入口，而不是单一数据面板。</li>
-                <li>多色只出现在导航入口，主内容仍由蓝灰白控制。</li>
-                <li>这一版最能解决“死气沉沉”的问题。</li>
-              </ul>
-            </article>
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <p
-                className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.accent }}
-              >
-                ICPC Awards
-              </p>
-              <h4 className="mt-3 text-2xl font-semibold">Award history</h4>
-              <div className="mt-5">
-                <Awards tokens={tokens} />
-              </div>
-            </article>
-          </div>
-        </div>
-      </div>
-    </Stage>
-  );
-}
-
-function PaperColumnPreview() {
-  const tokens: Tokens = {
-    page: "#f5f5f5",
-    panel: "#ffffff",
-    panelAlt: "#f7f9fb",
-    line: "#dddddd",
-    text: "#34495e",
-    textMuted: "#525252",
-    textSoft: "#737373",
-    accent: "#3498db",
-    accentSoft: "rgba(52, 152, 219, 0.12)",
-    chart: "#3498db",
-    heatmap: ["#ffffff", "#ebf5fc", "#cde4f5", "#7dbbe7", "#3498db"],
-  };
-
-  return (
-    <Stage
-      className="border-neutral-300"
-      style={{
-        background: tokens.page,
-        color: tokens.text,
-        fontFamily: fontStacks.sans,
-      }}
-    >
-      <div className="bg-[#34495e] px-6 py-3 text-white">
-        <div className="flex flex-wrap items-center gap-5 text-sm">
-          <span className="font-semibold">ACMRank</span>
-          <span className="text-white/75">Profile</span>
-          <span className="text-white/75">Problem View</span>
-          <span className="rounded-full bg-[#3498db] px-3 py-1">
-            Public Page
-          </span>
-        </div>
-      </div>
-      <div className="p-6 sm:p-8">
-        <header className="border-b pb-6" style={{ borderColor: tokens.line }}>
-          <p
-            className="text-[11px] uppercase tracking-[0.3em]"
-            style={{ color: tokens.accent }}
-          >
-            Luogu Profile
-          </p>
-          <div className="mt-4 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <h2 className="text-4xl font-semibold leading-tight sm:text-5xl">
-                同一套洛谷配色，换成更正常的“个人页优先”布局。
-              </h2>
-              <p
-                className="mt-4 max-w-3xl text-sm leading-7"
-                style={{ color: tokens.textMuted }}
-              >
-                这一版把用户本人放回页面中心。左侧是身份、账号和奖项，右侧是折线图、热力图和题目视图，更接近真正会落地的公开用户页。
-              </p>
-            </div>
-            <MetricGrid tokens={tokens} compact />
-          </div>
-        </header>
-
-        <div className="mt-6 grid gap-5 xl:grid-cols-[0.88fr_1.12fr]">
-          <article
-            className="rounded-[26px] border p-5"
+        <div className="space-y-4">
+          <Panel
             style={{ background: tokens.panel, borderColor: tokens.line }}
+            className="px-5 py-4"
           >
+            <h2 className="text-2xl font-semibold sm:text-3xl">{heading}</h2>
             <p
-              className="text-[11px] uppercase tracking-[0.24em]"
+              className="mt-2 text-sm leading-7"
               style={{ color: tokens.textMuted }}
             >
-              Editorial Note
+              {description}
             </p>
-            <h3 className="mt-3 text-3xl leading-tight">
-              左侧人物信息固定，右侧专注展示训练结果，这样读起来会顺很多。
-            </h3>
-            <ul
-              className="mt-5 space-y-3 text-sm leading-7"
-              style={{ color: tokens.textMuted }}
-            >
-              <li>信息入口减少，注意力更集中在单个用户身上。</li>
-              <li>图表和题目列表的关系更自然，不像首页模块在抢位置。</li>
-              <li>如果主产品核心是公开个人页，这一版最值得继续做。</li>
-            </ul>
-            <div
-              className="mt-6 border-t pt-5"
-              style={{ borderColor: tokens.line }}
-            >
-              <p
-                className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.textMuted }}
-              >
-                ICPC Awards
-              </p>
-              <div className="mt-4">
-                <Awards tokens={tokens} />
-              </div>
-            </div>
-          </article>
-
-          <div className="space-y-5">
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p
-                    className="text-[11px] uppercase tracking-[0.24em]"
-                    style={{ color: tokens.textMuted }}
-                  >
-                    Public Profile Layout
-                  </p>
-                  <h3 className="mt-3 text-3xl leading-tight">
-                    更像真实用户页，而不是门户页缩小版。
-                  </h3>
-                </div>
-                <div
-                  className="flex flex-wrap gap-2 text-xs"
-                  style={{ color: tokens.textMuted }}
-                >
-                  {["Profile", "Awards", "Problems", "Rating"].map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border px-3 py-1.5"
-                      style={{
-                        borderColor: tokens.line,
-                        background: tokens.panelAlt,
-                      }}
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
-                <div
-                  className="rounded-[22px] border p-4"
-                  style={{
-                    background: tokens.panelAlt,
-                    borderColor: tokens.line,
-                  }}
-                >
-                  <div className="mb-4 flex items-end justify-between">
-                    <p
-                      className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.textMuted }}
-                    >
-                      SCNU Rating Curve
-                    </p>
-                    <span
-                      className="text-sm"
-                      style={{ color: tokens.textSoft }}
-                    >
-                      profile curve
-                    </span>
-                  </div>
-                  <TrendChart tokens={tokens} />
-                </div>
-                <div
-                  className="rounded-[22px] border p-4"
-                  style={{
-                    background: tokens.panelAlt,
-                    borderColor: tokens.line,
-                  }}
-                >
-                  <div className="mb-4 flex items-end justify-between">
-                    <p
-                      className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.textMuted }}
-                    >
-                      Daily Heatmap
-                    </p>
-                    <span
-                      className="text-sm"
-                      style={{ color: tokens.textSoft }}
-                    >
-                      daily newly accepted
-                    </span>
-                  </div>
-                  <Heatmap tokens={tokens} />
-                </div>
-              </div>
-            </article>
-
-            <div className="grid gap-5 lg:grid-cols-[0.88fr_1.12fr]">
-              <article
-                className="rounded-[26px] border p-5"
-                style={{ background: tokens.panel, borderColor: tokens.line }}
-              >
-                <p
-                  className="text-[11px] uppercase tracking-[0.24em]"
-                  style={{ color: tokens.textMuted }}
-                >
-                  Leaderboard
-                </p>
-                <h4 className="mt-3 text-2xl font-semibold">Campus ranking</h4>
-                <div className="mt-5">
-                  <RankingList tokens={tokens} />
-                </div>
-              </article>
-              <article
-                className="rounded-[26px] border p-5"
-                style={{ background: tokens.panel, borderColor: tokens.line }}
-              >
-                <p
-                  className="text-[11px] uppercase tracking-[0.24em]"
-                  style={{ color: tokens.textMuted }}
-                >
-                  Problem Ledger
-                </p>
-                <h4 className="mt-3 text-2xl font-semibold">Solved problems</h4>
-                <div className="mt-5">
-                  <ProblemTable tokens={tokens} />
-                </div>
-              </article>
-            </div>
-          </div>
+          </Panel>
+          {children}
         </div>
       </div>
     </Stage>
   );
 }
 
-function SteelFramePreview() {
-  const tokens: Tokens = {
-    page: "#e9eaec",
-    panel: "#ffffff",
-    panelAlt: "#f5f8fb",
-    line: "#d8e1e8",
-    text: "#34495e",
-    textMuted: "#525252",
-    textSoft: "#737373",
-    accent: "#3498db",
-    accentSoft: "rgba(52, 152, 219, 0.12)",
-    chart: "#3498db",
-    heatmap: ["#ffffff", "#ebf5fc", "#cde4f5", "#7dbbe7", "#3498db"],
-  };
+function PortalPreview() {
+  const tokens = luoguTokens;
 
   return (
-    <Stage
-      className="border-neutral-400"
-      style={{
-        background: tokens.page,
-        color: tokens.text,
-        fontFamily: fontStacks.sans,
-      }}
+    <DashboardLayout
+      heading="门户布局：总览 + 公告 + 榜单"
+      description="保留 Luogu 风格的彩色入口，但主界面用黑白灰做骨架，首页先呈现最关键的动态。"
+      sidebarTitle="首页导航"
+      sidebarItems={["总览", "排行榜", "个人页", "训练", "公告", "讨论"]}
     >
-      <div className="bg-[#3498db] px-6 py-4 text-white">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-4">
-            <span className="text-lg font-semibold">ACMRank</span>
-            <span className="text-sm text-white/85">Rankings</span>
-            <span className="text-sm text-white/85">Trend</span>
-            <span className="text-sm text-white/85">Heatmap</span>
-          </div>
-          <span className="rounded-full bg-white/16 px-3 py-1 text-xs">
-            Luogu palette
-          </span>
-        </div>
-      </div>
-      <div className="p-6 sm:p-8">
-        <header
-          className="rounded-[26px] border p-5"
-          style={{ background: "#ffffff", borderColor: tokens.line }}
-        >
-          <p
-            className="text-[11px] uppercase tracking-[0.3em]"
-            style={{ color: tokens.accent }}
+      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead title="核心指标" detail="每日更新" tokens={tokens} />
+          <MetricGrid cards={metricCards} tokens={tokens} />
+        </Panel>
+
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead title="站内动态" detail="最新公告" tokens={tokens} />
+          <div
+            className="space-y-2.5 text-sm"
+            style={{ color: tokens.textMuted }}
           >
-            Luogu Rankings
-          </p>
-          <div className="mt-4 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
-            <div>
-              <h2 className="text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-                用洛谷这套颜色，直接把榜单和趋势做成站点主视觉。
-              </h2>
-              <p
-                className="mt-4 max-w-3xl text-sm leading-7"
-                style={{ color: tokens.textMuted }}
-              >
-                如果首页的核心价值是排行榜和成长曲线，那就不必再塞太多入口。把视觉重心压到榜单、折线图和热力图，会更直接。
-              </p>
-            </div>
-            <MetricGrid tokens={tokens} compact />
+            <p>账号绑定审核每周二、周五统一处理。</p>
+            <p>排行榜每天 23:59 生成快照，次日展示变化值。</p>
+            <p>AtCoder 主链路失败会触发主动告警。</p>
           </div>
-        </header>
+        </Panel>
+      </div>
 
-        <div className="mt-5 grid gap-5 xl:grid-cols-[1.08fr_0.92fr]">
-          <div className="space-y-5">
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <div className="flex flex-wrap items-end justify-between gap-4">
-                <div>
-                  <p
-                    className="text-[11px] uppercase tracking-[0.24em]"
-                    style={{ color: tokens.textMuted }}
-                  >
-                    Unified Product Shell
-                  </p>
-                  <h3 className="mt-3 text-3xl font-semibold">
-                    把评分、变化值和榜单做成主舞台，页面会更有冲劲。
-                  </h3>
-                </div>
-                <div
-                  className="flex flex-wrap gap-2 text-xs"
-                  style={{ color: tokens.textMuted }}
-                >
-                  {["Rankings", "Rating", "Heatmap", "Recent"].map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border px-3 py-1.5"
-                      style={{
-                        borderColor: tokens.line,
-                        background: tokens.panelAlt,
-                      }}
-                    >
-                      {item}
-                    </span>
-                  ))}
-                </div>
-              </div>
-              <div className="mt-6 grid gap-4 lg:grid-cols-[1.05fr_0.95fr]">
-                <div
-                  className="rounded-[22px] border p-4"
-                  style={{
-                    background: tokens.panelAlt,
-                    borderColor: tokens.line,
-                  }}
-                >
-                  <div className="mb-4 flex items-end justify-between">
-                    <p
-                      className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.textMuted }}
-                    >
-                      Top Ranking
-                    </p>
-                    <span
-                      className="text-sm"
-                      style={{ color: tokens.textSoft }}
-                    >
-                      SCNU Rating
-                    </span>
-                  </div>
-                  <RankingList tokens={tokens} />
-                </div>
-                <div
-                  className="rounded-[22px] border p-4"
-                  style={{
-                    background: tokens.panelAlt,
-                    borderColor: tokens.line,
-                  }}
-                >
-                  <div className="mb-4 flex items-end justify-between">
-                    <p
-                      className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.textMuted }}
-                    >
-                      Daily Heatmap
-                    </p>
-                    <span
-                      className="text-sm"
-                      style={{ color: tokens.textSoft }}
-                    >
-                      daily new AC
-                    </span>
-                  </div>
-                  <Heatmap tokens={tokens} />
-                </div>
-              </div>
-            </article>
+      <div className="grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead title="排行榜" detail="SCNU Rating" tokens={tokens} />
+          <RankingList tokens={tokens} />
+        </Panel>
 
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <div className="mb-4 flex items-end justify-between">
-                <div>
-                  <p
-                    className="text-[11px] uppercase tracking-[0.24em]"
-                    style={{ color: tokens.textMuted }}
-                  >
-                    SCNU Rating Curve
-                  </p>
-                  <h4 className="mt-3 text-2xl font-semibold">Trend view</h4>
-                </div>
-                <span className="text-sm" style={{ color: tokens.textSoft }}>
-                  growth focus
-                </span>
-              </div>
-              <TrendChart tokens={tokens} />
-            </article>
-          </div>
+        <div className="space-y-4">
+          <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+            <SectionHead
+              title="Daily New AC"
+              detail="GitHub 风格绿色热力图"
+              tokens={tokens}
+            />
+            <Heatmap tokens={tokens} />
+          </Panel>
 
-          <div className="space-y-5">
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <p
-                className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.textMuted }}
-              >
-                Solved Problems
-              </p>
-              <h4 className="mt-3 text-2xl font-semibold">Problem table</h4>
-              <div className="mt-5">
-                <ProblemTable tokens={tokens} />
-              </div>
-            </article>
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <p
-                className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.textMuted }}
-              >
-                ICPC Awards
-              </p>
-              <h4 className="mt-3 text-2xl font-semibold">Award history</h4>
-              <div className="mt-5">
-                <Awards tokens={tokens} />
-              </div>
-            </article>
-            <article
-              className="rounded-[26px] border p-5"
-              style={{ background: tokens.panel, borderColor: tokens.line }}
-            >
-              <p
-                className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.textMuted }}
-              >
-                Why This Works
-              </p>
-              <ul
-                className="mt-4 space-y-3 text-sm leading-7"
-                style={{ color: tokens.textMuted }}
-              >
-                <li>把站点价值压缩成几个高权重模块，气质会更利落。</li>
-                <li>适合首页直接展示 SCNU Rating 排行榜时使用。</li>
-                <li>如果你最在意“核心指标看起来够不够强”，这一版最好用。</li>
-              </ul>
-            </article>
-          </div>
+          <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+            <SectionHead title="近期过题" detail="最新 AC" tokens={tokens} />
+            <ProblemTable tokens={tokens} rows={problemRows.slice(0, 3)} />
+          </Panel>
         </div>
       </div>
-    </Stage>
+    </DashboardLayout>
+  );
+}
+
+function ProfilePreview() {
+  const tokens = luoguTokens;
+
+  return (
+    <DashboardLayout
+      heading="个人布局：信息卡 + 曲线 + 过题"
+      description="这一版把用户个人信息放到第一屏，图表和过题列表在同一阅读流里，适合公开个人页。"
+      sidebarTitle="个人页导航"
+      sidebarItems={[
+        "个人概览",
+        "SCNU Rating",
+        "Daily New AC",
+        "过题列表",
+        "奖项历史",
+      ]}
+    >
+      <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+        <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)]">
+          <div
+            className="rounded-xl border p-4"
+            style={{ background: tokens.panelAlt, borderColor: tokens.line }}
+          >
+            <p className="text-sm" style={{ color: tokens.accent }}>
+              treneneno
+            </p>
+            <h3 className="mt-1 text-xl font-semibold">公开个人页</h3>
+            <div
+              className="mt-3 space-y-1.5 text-sm"
+              style={{ color: tokens.textMuted }}
+            >
+              <p>实名：陈某某</p>
+              <p>已验证账号：7</p>
+              <p>ICPC 奖项：3</p>
+            </div>
+          </div>
+
+          <MetricGrid cards={metricCards} tokens={tokens} />
+        </div>
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-[1.08fr_0.92fr]">
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead
+            title="SCNU Rating"
+            detail="近 12 个时间点"
+            tokens={tokens}
+          />
+          <TrendChart tokens={tokens} />
+        </Panel>
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead
+            title="Daily New AC"
+            detail="绿色热力图"
+            tokens={tokens}
+          />
+          <Heatmap tokens={tokens} />
+        </Panel>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead title="ICPC 奖项历史" tokens={tokens} />
+          <Awards tokens={tokens} />
+        </Panel>
+
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead title="过题列表" tokens={tokens} />
+          <ProblemTable tokens={tokens} />
+        </Panel>
+      </div>
+    </DashboardLayout>
+  );
+}
+
+function RankingPreview() {
+  const tokens = luoguTokens;
+
+  return (
+    <DashboardLayout
+      heading="榜单布局：排行榜优先"
+      description="核心信息先给榜单和变化值，曲线和热力图放在右侧辅助区，整体更接近成熟竞赛站 Dashboard。"
+      sidebarTitle="榜单导航"
+      sidebarItems={[
+        "总榜",
+        "SCNU Rating",
+        "昨日变化",
+        "Daily New AC",
+        "平台拆分",
+      ]}
+    >
+      <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+        <SectionHead title="榜单概览" detail="今日快照" tokens={tokens} />
+        <MetricGrid cards={metricCards} tokens={tokens} />
+      </Panel>
+
+      <div className="grid gap-4 xl:grid-cols-[1.06fr_0.94fr]">
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead
+            title="排行榜"
+            detail="按 SCNU Rating 排序"
+            tokens={tokens}
+          />
+          <RankingList tokens={tokens} />
+        </Panel>
+
+        <div className="space-y-4">
+          <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+            <SectionHead
+              title="评分走势"
+              detail="近 12 个时间点"
+              tokens={tokens}
+            />
+            <TrendChart tokens={tokens} />
+          </Panel>
+          <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+            <SectionHead
+              title="Daily New AC"
+              detail="绿色热力图"
+              tokens={tokens}
+            />
+            <Heatmap tokens={tokens} />
+          </Panel>
+        </div>
+      </div>
+
+      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead title="近期过题" detail="榜单下钻" tokens={tokens} />
+          <ProblemTable tokens={tokens} rows={problemRows.slice(0, 3)} />
+        </Panel>
+        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
+          <SectionHead title="平台拆分" detail="已通过题分布" tokens={tokens} />
+          <PlatformBreakdown tokens={tokens} />
+        </Panel>
+      </div>
+    </DashboardLayout>
   );
 }
 
@@ -1053,34 +778,32 @@ function PreviewButton({
       type="button"
       onClick={() => onSelect(option.id)}
       aria-pressed={active}
-      className="w-full rounded-[22px] border px-4 py-4 text-left transition"
+      className="w-full rounded-xl border px-4 py-3 text-left transition-[border-color,background-color] duration-200"
       style={{
-        borderColor: active ? option.accent : "#2f2f2f",
-        background: active ? "#262626" : "#171717",
+        borderColor: active ? option.accent : "#d7dee6",
+        background: active ? "rgba(52, 152, 219, 0.08)" : "#ffffff",
       }}
     >
       <p
         className="text-[11px] uppercase tracking-[0.24em]"
-        style={{ color: active ? option.accent : "#737373" }}
+        style={{ color: "#8191a0" }}
       >
         {option.eyebrow}
       </p>
-      <h2 className="mt-3 text-xl font-semibold text-neutral-50">
+      <h2 className="mt-2 text-lg font-semibold" style={{ color: "#34495e" }}>
         {option.label}
       </h2>
-      <p className="mt-2 text-sm leading-6 text-neutral-400">{option.mood}</p>
-      <div className="mt-4 flex flex-wrap gap-2">
+      <p className="mt-1.5 text-sm leading-6" style={{ color: "#5c6b78" }}>
+        {option.mood}
+      </p>
+      <div className="mt-3 flex flex-wrap gap-1.5">
         {option.palette.map((token) => (
           <span
             key={`${option.id}-${token}`}
-            className="inline-flex items-center gap-2 rounded-full border border-neutral-700 px-2.5 py-1 text-xs text-neutral-400"
-          >
-            <span
-              className="h-2.5 w-2.5 rounded-full border border-neutral-600"
-              style={{ background: token }}
-            />
-            {token}
-          </span>
+            className="inline-flex h-4 w-4 rounded-full border"
+            style={{ background: token, borderColor: "#d7dee6" }}
+            title={token}
+          />
         ))}
       </div>
     </button>
@@ -1088,31 +811,43 @@ function PreviewButton({
 }
 
 export function RootPage() {
-  const [activePreviewId, setActivePreviewId] =
-    useState<PreviewId>("ink-stone");
+  const [activePreviewId, setActivePreviewId] = useState<PreviewId>("portal");
   const activePreview =
     previewOptions.find(({ id }) => id === activePreviewId) ??
     previewOptions[0];
 
   return (
-    <main className="min-h-screen bg-[#0a0a0a] px-4 py-5 text-neutral-50 sm:px-6 lg:px-8">
+    <main
+      className="min-h-screen px-4 py-5 sm:px-6 lg:px-8"
+      style={{
+        background:
+          "radial-gradient(circle at 15% 0%, #ffffff 0%, #edf2f7 45%, #e8edf3 100%)",
+      }}
+    >
       <div className="mx-auto grid max-w-[1480px] gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
-        <aside className="h-fit rounded-[32px] border border-neutral-800 bg-[#111111] p-5">
-          <p className="text-[11px] uppercase tracking-[0.3em] text-neutral-500">
-            Style Sandbox
+        <aside
+          className="h-fit rounded-2xl border bg-white p-5"
+          style={{ borderColor: "#d8e1e8" }}
+        >
+          <p
+            className="text-[11px] uppercase tracking-[0.3em]"
+            style={{ color: "#7d8d9d" }}
+          >
+            预览实验室
           </p>
-          <h1 className="mt-4 text-3xl font-semibold tracking-tight">
-            ACMRank Frontend Preview Lab
+          <h1 className="mt-3 text-3xl font-semibold tracking-tight text-[#34495e]">
+            ACMRank 风格预览
           </h1>
-          <p className="mt-3 text-sm leading-7 text-neutral-400">
-            这一轮不再比较不同配色了，直接锁定你认可的洛谷色板，只比较 3
-            种更正常的页面结构。你选定后，我再把风格约束写入
-            <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-200">
-              AGENTS.md
-            </code>
-            ，然后回退这次预览改动。
+          <p className="mt-3 text-sm leading-7 text-[#5c6b78]">
+            这轮只比较页面结构，不比较主色板。底色统一黑白灰，保留 Luogu
+            风格主题色和绿色
+            <span className="mx-1 font-medium text-[#2ea043]">
+              Daily New AC
+            </span>
+            热力图。
           </p>
-          <div className="mt-6 space-y-3">
+
+          <div className="mt-5 space-y-3">
             {previewOptions.map((option) => (
               <PreviewButton
                 key={option.id}
@@ -1122,19 +857,26 @@ export function RootPage() {
               />
             ))}
           </div>
-          <div className="mt-6 rounded-[22px] border border-neutral-800 bg-[#171717] p-4">
-            <p className="text-xs uppercase tracking-[0.24em] text-neutral-500">
-              Current Read
+
+          <div
+            className="mt-5 rounded-xl border px-4 py-3"
+            style={{ borderColor: "#d8e1e8", background: "#f8fbff" }}
+          >
+            <p
+              className="text-xs uppercase tracking-[0.24em]"
+              style={{ color: "#8191a0" }}
+            >
+              当前推荐
             </p>
-            <p className="mt-3 text-sm leading-6 text-neutral-300">
+            <p className="mt-2 text-sm leading-6 text-[#5c6b78]">
               {activePreview.recommendation}
             </p>
           </div>
         </aside>
 
-        {activePreviewId === "ink-stone" ? <InkStonePreview /> : null}
-        {activePreviewId === "paper-column" ? <PaperColumnPreview /> : null}
-        {activePreviewId === "steel-frame" ? <SteelFramePreview /> : null}
+        {activePreviewId === "portal" ? <PortalPreview /> : null}
+        {activePreviewId === "profile" ? <ProfilePreview /> : null}
+        {activePreviewId === "ranking" ? <RankingPreview /> : null}
       </div>
     </main>
   );
