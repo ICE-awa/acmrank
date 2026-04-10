@@ -9,34 +9,30 @@ describe("RootPage", () => {
     expect(
       screen.getByRole("heading", { name: "ACMRank Frontend Preview Lab" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Signal Lab/i })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /Ink Stone/i })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(
-      screen.getByRole("button", { name: /Archive Ledger/i }),
+      screen.getByRole("button", { name: /Paper Column/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Trackside Pulse/i }),
+      screen.getByRole("button", { name: /Steel Frame/i }),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Contest Signals, Clean Facts/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/黑白灰的训练档案页/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Archive Ledger/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Paper Column/i }));
 
     expect(
-      screen.getByRole("button", { name: /Archive Ledger/i }),
+      screen.getByRole("button", { name: /Paper Column/i }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText(/训练档案像校史馆一样可靠/)).toBeInTheDocument();
+    expect(screen.getByText(/白底黑字，像公开档案册/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Trackside Pulse/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Steel Frame/i }));
 
     expect(
-      screen.getByRole("button", { name: /Trackside Pulse/i }),
+      screen.getByRole("button", { name: /Steel Frame/i }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(
-      screen.getByText(/把训练曲线做成一张有速度感的竞赛战报/),
-    ).toBeInTheDocument();
+    expect(screen.getByText(/中性、规整、克制/)).toBeInTheDocument();
   });
 });

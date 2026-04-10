@@ -9,18 +9,16 @@ test("shows the style preview lab and allows switching themes", async ({
     page.getByRole("heading", { name: "ACMRank Frontend Preview Lab" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Contest Signals, Clean Facts" }),
+    page.getByRole("heading", { name: /黑白灰的训练档案页/ }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /Archive Ledger/i }).click();
+  await page.getByRole("button", { name: /Paper Column/i }).click();
   await expect(
-    page.getByRole("heading", { name: /训练档案像校史馆一样可靠/ }),
+    page.getByRole("heading", { name: /白底黑字，像公开档案册/ }),
   ).toBeVisible();
 
-  await page.getByRole("button", { name: /Trackside Pulse/i }).click();
+  await page.getByRole("button", { name: /Steel Frame/i }).click();
   await expect(
-    page.getByRole("heading", {
-      name: "把训练曲线做成一张有速度感的竞赛战报",
-    }),
+    page.getByRole("heading", { name: /中性、规整、克制/ }),
   ).toBeVisible();
 });
