@@ -9,30 +9,33 @@ describe("RootPage", () => {
     expect(
       screen.getByRole("heading", { name: "ACMRank Frontend Preview Lab" }),
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Ink Stone/i })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
     expect(
-      screen.getByRole("button", { name: /Paper Column/i }),
+      screen.getByRole("button", { name: /Luogu Portal/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: /Luogu Profile/i }),
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Steel Frame/i }),
+      screen.getByRole("button", { name: /Luogu Rankings/i }),
     ).toBeInTheDocument();
-    expect(screen.getByText(/黑白灰的训练档案页/)).toBeInTheDocument();
+    expect(screen.getByText(/保留洛谷这套蓝灰白颜色/)).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole("button", { name: /Paper Column/i }));
-
-    expect(
-      screen.getByRole("button", { name: /Paper Column/i }),
-    ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText(/白底黑字，像公开档案册/)).toBeInTheDocument();
-
-    fireEvent.click(screen.getByRole("button", { name: /Steel Frame/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Luogu Profile/i }));
 
     expect(
-      screen.getByRole("button", { name: /Steel Frame/i }),
+      screen.getByRole("button", { name: /Luogu Profile/i }),
     ).toHaveAttribute("aria-pressed", "true");
-    expect(screen.getByText(/中性、规整、克制/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/同一套洛谷配色，换成更正常的“个人页优先”布局/),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Luogu Rankings/i }));
+
+    expect(
+      screen.getByRole("button", { name: /Luogu Rankings/i }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByText(/用洛谷这套颜色，直接把榜单和趋势做成站点主视觉/),
+    ).toBeInTheDocument();
   });
 });

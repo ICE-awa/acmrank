@@ -29,33 +29,31 @@ type Tokens = {
 const previewOptions: PreviewOption[] = [
   {
     id: "ink-stone",
-    label: "Ink Stone",
-    eyebrow: "Dark archive",
-    mood: "深灰底、强对齐、偏排行榜与数据档案页。",
-    recommendation:
-      "如果你希望正式站点更稳、更冷、更像长期维护的训练系统，这套最接近。",
-    accent: "#6f8f72",
-    palette: ["#111111", "#1f1f1f", "#d4d4d4", "#f5f5f5", "#6f8f72"],
+    label: "Luogu Portal",
+    eyebrow: "Luogu palette / portal layout",
+    mood: "更像首页门户，模块活跃，适合放公告、排行榜、个人入口。",
+    recommendation: "如果你希望首页看起来更有生气，这一版最适合继续深化。",
+    accent: "#3498db",
+    palette: ["#34495e", "#e9eaec", "#ffffff", "#5c5c5c", "#3498db"],
   },
   {
     id: "paper-column",
-    label: "Paper Column",
-    eyebrow: "Editorial ledger",
-    mood: "白底黑字、报刊式排版、偏公开档案与人物陈列。",
-    recommendation:
-      "如果你希望公开页更像校内竞赛档案册，而不是后台系统，这套更合适。",
-    accent: "#5f6f8a",
-    palette: ["#ffffff", "#f5f5f5", "#262626", "#737373", "#5f6f8a"],
+    label: "Luogu Profile",
+    eyebrow: "Luogu palette / profile layout",
+    mood: "更像用户个人页，左侧人物信息，右侧图表和题目视图。",
+    recommendation: "如果你想先把用户公开页做顺，这一版会更接近正式主产品。",
+    accent: "#3498db",
+    palette: ["#34495e", "#e9eaec", "#ffffff", "#5c5c5c", "#3498db"],
   },
   {
     id: "steel-frame",
-    label: "Steel Frame",
-    eyebrow: "Neutral product",
-    mood: "中性灰、模块规整、偏正式产品界面。",
+    label: "Luogu Rankings",
+    eyebrow: "Luogu palette / ranking layout",
+    mood: "更像榜单和数据总览页，适合核心排行榜与趋势展示。",
     recommendation:
-      "如果你想让正式前端尽量中庸稳定，不强调情绪，这套最容易长期统一。",
-    accent: "#7d5e66",
-    palette: ["#171717", "#404040", "#a3a3a3", "#fafafa", "#7d5e66"],
+      "如果你想把评分、变化值和榜单做成站点主视觉，这一版更合适。",
+    accent: "#3498db",
+    palette: ["#34495e", "#e9eaec", "#ffffff", "#5c5c5c", "#3498db"],
   },
 ] as const;
 
@@ -352,47 +350,77 @@ function Awards({ tokens }: { tokens: Tokens }) {
 
 function InkStonePreview() {
   const tokens: Tokens = {
-    page: "#111111",
-    panel: "#171717",
-    panelAlt: "#1f1f1f",
-    line: "#2f2f2f",
-    text: "#f5f5f5",
-    textMuted: "#a3a3a3",
-    textSoft: "#737373",
-    accent: "#6f8f72",
-    accentSoft: "rgba(111, 143, 114, 0.16)",
-    chart: "#6f8f72",
-    heatmap: ["#171717", "#232323", "#2f3932", "#506358", "#6f8f72"],
+    page: "#e9eaec",
+    panel: "#ffffff",
+    panelAlt: "#f5f8fb",
+    line: "#d8e1e8",
+    text: "#34495e",
+    textMuted: "#5c5c5c",
+    textSoft: "#7a7a7a",
+    accent: "#3498db",
+    accentSoft: "rgba(52, 152, 219, 0.12)",
+    chart: "#3498db",
+    heatmap: ["#ffffff", "#ebf5fc", "#cde4f5", "#7dbbe7", "#3498db"],
   };
 
   return (
     <Stage
-      className="border-neutral-800"
+      className="border-neutral-300"
       style={{
         background: tokens.page,
         color: tokens.text,
         fontFamily: fontStacks.sans,
       }}
     >
+      <div className="bg-[#3498db] px-6 py-4 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-lg font-semibold">ACMRank</span>
+            <span className="text-sm text-white/85">Portal</span>
+            <span className="text-sm text-white/85">Rankings</span>
+            <span className="text-sm text-white/85">Profiles</span>
+          </div>
+          <span className="rounded-full bg-white/16 px-3 py-1 text-xs">
+            Luogu palette
+          </span>
+        </div>
+      </div>
       <div className="p-6 sm:p-8">
         <header className="border-b pb-6" style={{ borderColor: tokens.line }}>
           <p
             className="text-[11px] uppercase tracking-[0.3em]"
             style={{ color: tokens.accent }}
           >
-            Ink Stone
+            Luogu Portal
           </p>
           <div className="mt-4 grid gap-5 xl:grid-cols-[1.15fr_0.85fr]">
             <div>
               <h2 className="text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-                黑白灰的训练档案页，信息密度高，但不吵。
+                保留洛谷这套蓝灰白颜色，但把首页做得更像“活的门户”。
               </h2>
               <p
                 className="mt-4 max-w-3xl text-sm leading-7"
                 style={{ color: tokens.textMuted }}
               >
-                这一套故意不做展示化首页，而是直接模拟正式产品页的语言。适合排行榜、个人页、平台视图共用一套冷静的深色体系。
+                这一版不再做沉闷的大卡片拼盘，而是参考洛谷那种更有流动感的首页。蓝色做主轴，白卡承载内容，灰底负责留白和呼吸。
               </p>
+              <div className="mt-5 flex flex-wrap gap-2 text-xs">
+                {[
+                  ["Problems", "#e74c3c"],
+                  ["Trainings", "#f39c12"],
+                  ["Contests", "#9b59b6"],
+                  ["Teams", "#3498db"],
+                  ["Discuss", "#34495e"],
+                ].map(([label, color]) => (
+                  <span
+                    key={label}
+                    className="rounded-full px-3 py-1.5 text-white"
+                    style={{ background: color }}
+                  >
+                    {label}
+                  </span>
+                ))}
+              </div>
             </div>
             <MetricGrid tokens={tokens} compact />
           </div>
@@ -408,30 +436,30 @@ function InkStonePreview() {
                 <div>
                   <p
                     className="text-[11px] uppercase tracking-[0.24em]"
-                    style={{ color: tokens.textMuted }}
+                    style={{ color: tokens.accent }}
                   >
-                    Public Profile / u.treneneno
+                    Campus Portal
                   </p>
                   <h3 className="mt-3 text-3xl font-semibold">
-                    SCNU Rating 与每日新 AC 在同一阅读系统内展示
+                    公告、趋势、榜单和个人入口可以共存，而且不显得堵。
                   </h3>
                 </div>
-                <div
-                  className="flex flex-wrap gap-2 text-xs"
-                  style={{ color: tokens.textMuted }}
-                >
-                  {["Rankings", "Profile", "Platforms", "ICPC"].map((item) => (
-                    <span
-                      key={item}
-                      className="rounded-full border px-3 py-1.5"
-                      style={{
-                        borderColor: tokens.line,
-                        background: tokens.panelAlt,
-                      }}
-                    >
-                      {item}
-                    </span>
-                  ))}
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {["Announcement", "Ranking", "Profile", "Awards"].map(
+                    (item) => (
+                      <span
+                        key={item}
+                        className="rounded-full border px-3 py-1.5"
+                        style={{
+                          borderColor: tokens.line,
+                          background: tokens.panelAlt,
+                          color: tokens.textMuted,
+                        }}
+                      >
+                        {item}
+                      </span>
+                    ),
+                  )}
                 </div>
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
@@ -445,7 +473,7 @@ function InkStonePreview() {
                   <div className="mb-4 flex items-end justify-between">
                     <p
                       className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.textMuted }}
+                      style={{ color: tokens.accent }}
                     >
                       SCNU Rating Curve
                     </p>
@@ -453,7 +481,7 @@ function InkStonePreview() {
                       className="text-sm"
                       style={{ color: tokens.textSoft }}
                     >
-                      近 12 次快照
+                      首页趋势卡
                     </span>
                   </div>
                   <TrendChart tokens={tokens} />
@@ -468,7 +496,7 @@ function InkStonePreview() {
                   <div className="mb-4 flex items-end justify-between">
                     <p
                       className="text-[11px] uppercase tracking-[0.24em]"
-                      style={{ color: tokens.textMuted }}
+                      style={{ color: tokens.accent }}
                     >
                       Daily New AC
                     </p>
@@ -476,7 +504,7 @@ function InkStonePreview() {
                       className="text-sm"
                       style={{ color: tokens.textSoft }}
                     >
-                      GitHub-like heatmap
+                      热力图入口
                     </span>
                   </div>
                   <Heatmap tokens={tokens} />
@@ -491,9 +519,9 @@ function InkStonePreview() {
               >
                 <p
                   className="text-[11px] uppercase tracking-[0.24em]"
-                  style={{ color: tokens.textMuted }}
+                  style={{ color: tokens.accent }}
                 >
-                  Leaderboard
+                  Ranking Module
                 </p>
                 <h4 className="mt-3 text-2xl font-semibold">Campus ranking</h4>
                 <div className="mt-5">
@@ -506,12 +534,12 @@ function InkStonePreview() {
               >
                 <p
                   className="text-[11px] uppercase tracking-[0.24em]"
-                  style={{ color: tokens.textMuted }}
+                  style={{ color: tokens.accent }}
                 >
-                  Accepted Problems
+                  Problem Entry
                 </p>
                 <h4 className="mt-3 text-2xl font-semibold">
-                  AC only, no full submission history
+                  Latest solved set
                 </h4>
                 <div className="mt-5">
                   <ProblemTable tokens={tokens} />
@@ -527,7 +555,7 @@ function InkStonePreview() {
             >
               <p
                 className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.textMuted }}
+                style={{ color: tokens.accent }}
               >
                 Why This Works
               </p>
@@ -535,9 +563,9 @@ function InkStonePreview() {
                 className="mt-4 space-y-3 text-sm leading-7"
                 style={{ color: tokens.textMuted }}
               >
-                <li>黑底白字配细边线，适合长期维护的数据产品。</li>
-                <li>图表、排行榜、题目表的层级统一，不靠彩色强调。</li>
-                <li>如果你希望前后续管理端也能共享视觉语言，这套阻力最小。</li>
+                <li>首页更像站点入口，而不是单一数据面板。</li>
+                <li>多色只出现在导航入口，主内容仍由蓝灰白控制。</li>
+                <li>这一版最能解决“死气沉沉”的问题。</li>
               </ul>
             </article>
             <article
@@ -546,7 +574,7 @@ function InkStonePreview() {
             >
               <p
                 className="text-[11px] uppercase tracking-[0.24em]"
-                style={{ color: tokens.textMuted }}
+                style={{ color: tokens.accent }}
               >
                 ICPC Awards
               </p>
@@ -564,17 +592,17 @@ function InkStonePreview() {
 
 function PaperColumnPreview() {
   const tokens: Tokens = {
-    page: "#ffffff",
+    page: "#f5f5f5",
     panel: "#ffffff",
-    panelAlt: "#f5f5f5",
-    line: "#d4d4d4",
-    text: "#171717",
+    panelAlt: "#f7f9fb",
+    line: "#dddddd",
+    text: "#34495e",
     textMuted: "#525252",
     textSoft: "#737373",
-    accent: "#5f6f8a",
-    accentSoft: "rgba(95, 111, 138, 0.12)",
-    chart: "#5f6f8a",
-    heatmap: ["#ffffff", "#f5f5f5", "#d8dde6", "#9eabbe", "#5f6f8a"],
+    accent: "#3498db",
+    accentSoft: "rgba(52, 152, 219, 0.12)",
+    chart: "#3498db",
+    heatmap: ["#ffffff", "#ebf5fc", "#cde4f5", "#7dbbe7", "#3498db"],
   };
 
   return (
@@ -586,27 +614,34 @@ function PaperColumnPreview() {
         fontFamily: fontStacks.sans,
       }}
     >
+      <div className="bg-[#34495e] px-6 py-3 text-white">
+        <div className="flex flex-wrap items-center gap-5 text-sm">
+          <span className="font-semibold">ACMRank</span>
+          <span className="text-white/75">Profile</span>
+          <span className="text-white/75">Problem View</span>
+          <span className="rounded-full bg-[#3498db] px-3 py-1">
+            Public Page
+          </span>
+        </div>
+      </div>
       <div className="p-6 sm:p-8">
         <header className="border-b pb-6" style={{ borderColor: tokens.line }}>
           <p
             className="text-[11px] uppercase tracking-[0.3em]"
             style={{ color: tokens.accent }}
           >
-            Paper Column
+            Luogu Profile
           </p>
           <div className="mt-4 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
             <div>
-              <h2
-                className="text-4xl leading-tight sm:text-5xl"
-                style={{ fontFamily: fontStacks.serif }}
-              >
-                白底黑字，像公开档案册，而不是宣传页。
+              <h2 className="text-4xl font-semibold leading-tight sm:text-5xl">
+                同一套洛谷配色，换成更正常的“个人页优先”布局。
               </h2>
               <p
                 className="mt-4 max-w-3xl text-sm leading-7"
                 style={{ color: tokens.textMuted }}
               >
-                这一套更强调公开人物页和奖项历史的阅读感。它更像被整理过的竞赛档案、训练总册和校内公开页面。
+                这一版把用户本人放回页面中心。左侧是身份、账号和奖项，右侧是折线图、热力图和题目视图，更接近真正会落地的公开用户页。
               </p>
             </div>
             <MetricGrid tokens={tokens} compact />
@@ -624,19 +659,16 @@ function PaperColumnPreview() {
             >
               Editorial Note
             </p>
-            <h3
-              className="mt-3 text-3xl leading-tight"
-              style={{ fontFamily: fontStacks.serif }}
-            >
-              档案感最强，适合公开展示真实人物、成绩、奖项和训练轨迹。
+            <h3 className="mt-3 text-3xl leading-tight">
+              左侧人物信息固定，右侧专注展示训练结果，这样读起来会顺很多。
             </h3>
             <ul
               className="mt-5 space-y-3 text-sm leading-7"
               style={{ color: tokens.textMuted }}
             >
-              <li>白底长阅读舒适，题目表和奖项历史更像“资料册”。</li>
-              <li>标题可用衬线，正文维持无衬线，兼顾气质与可读性。</li>
-              <li>如果你重视学校内部产品的正式感，这套最像“经典网页”。</li>
+              <li>信息入口减少，注意力更集中在单个用户身上。</li>
+              <li>图表和题目列表的关系更自然，不像首页模块在抢位置。</li>
+              <li>如果主产品核心是公开个人页，这一版最值得继续做。</li>
             </ul>
             <div
               className="mt-6 border-t pt-5"
@@ -667,31 +699,26 @@ function PaperColumnPreview() {
                   >
                     Public Profile Layout
                   </p>
-                  <h3
-                    className="mt-3 text-3xl leading-tight"
-                    style={{ fontFamily: fontStacks.serif }}
-                  >
-                    公开页更像一份被排版过的训练档案，而不是面板式首页。
+                  <h3 className="mt-3 text-3xl leading-tight">
+                    更像真实用户页，而不是门户页缩小版。
                   </h3>
                 </div>
                 <div
                   className="flex flex-wrap gap-2 text-xs"
                   style={{ color: tokens.textMuted }}
                 >
-                  {["Profiles", "Awards", "Problems", "Rankings"].map(
-                    (item) => (
-                      <span
-                        key={item}
-                        className="rounded-full border px-3 py-1.5"
-                        style={{
-                          borderColor: tokens.line,
-                          background: tokens.panelAlt,
-                        }}
-                      >
-                        {item}
-                      </span>
-                    ),
-                  )}
+                  {["Profile", "Awards", "Problems", "Rating"].map((item) => (
+                    <span
+                      key={item}
+                      className="rounded-full border px-3 py-1.5"
+                      style={{
+                        borderColor: tokens.line,
+                        background: tokens.panelAlt,
+                      }}
+                    >
+                      {item}
+                    </span>
+                  ))}
                 </div>
               </div>
               <div className="mt-6 grid gap-4 lg:grid-cols-[1.08fr_0.92fr]">
@@ -713,7 +740,7 @@ function PaperColumnPreview() {
                       className="text-sm"
                       style={{ color: tokens.textSoft }}
                     >
-                      neutral monochrome
+                      profile curve
                     </span>
                   </div>
                   <TrendChart tokens={tokens} />
@@ -736,7 +763,7 @@ function PaperColumnPreview() {
                       className="text-sm"
                       style={{ color: tokens.textSoft }}
                     >
-                      new AC only
+                      daily newly accepted
                     </span>
                   </div>
                   <Heatmap tokens={tokens} />
@@ -755,12 +782,7 @@ function PaperColumnPreview() {
                 >
                   Leaderboard
                 </p>
-                <h4
-                  className="mt-3 text-2xl"
-                  style={{ fontFamily: fontStacks.serif }}
-                >
-                  Campus ranking
-                </h4>
+                <h4 className="mt-3 text-2xl font-semibold">Campus ranking</h4>
                 <div className="mt-5">
                   <RankingList tokens={tokens} />
                 </div>
@@ -775,12 +797,7 @@ function PaperColumnPreview() {
                 >
                   Problem Ledger
                 </p>
-                <h4
-                  className="mt-3 text-2xl"
-                  style={{ fontFamily: fontStacks.serif }}
-                >
-                  Solved problems
-                </h4>
+                <h4 className="mt-3 text-2xl font-semibold">Solved problems</h4>
                 <div className="mt-5">
                   <ProblemTable tokens={tokens} />
                 </div>
@@ -795,17 +812,17 @@ function PaperColumnPreview() {
 
 function SteelFramePreview() {
   const tokens: Tokens = {
-    page: "#e5e5e5",
-    panel: "#fafafa",
-    panelAlt: "#f0f0f0",
-    line: "#bdbdbd",
-    text: "#171717",
+    page: "#e9eaec",
+    panel: "#ffffff",
+    panelAlt: "#f5f8fb",
+    line: "#d8e1e8",
+    text: "#34495e",
     textMuted: "#525252",
     textSoft: "#737373",
-    accent: "#7d5e66",
-    accentSoft: "rgba(125, 94, 102, 0.12)",
-    chart: "#7d5e66",
-    heatmap: ["#fafafa", "#e7e2e3", "#d5c7cb", "#ae9198", "#7d5e66"],
+    accent: "#3498db",
+    accentSoft: "rgba(52, 152, 219, 0.12)",
+    chart: "#3498db",
+    heatmap: ["#ffffff", "#ebf5fc", "#cde4f5", "#7dbbe7", "#3498db"],
   };
 
   return (
@@ -817,6 +834,19 @@ function SteelFramePreview() {
         fontFamily: fontStacks.sans,
       }}
     >
+      <div className="bg-[#3498db] px-6 py-4 text-white">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-4">
+            <span className="text-lg font-semibold">ACMRank</span>
+            <span className="text-sm text-white/85">Rankings</span>
+            <span className="text-sm text-white/85">Trend</span>
+            <span className="text-sm text-white/85">Heatmap</span>
+          </div>
+          <span className="rounded-full bg-white/16 px-3 py-1 text-xs">
+            Luogu palette
+          </span>
+        </div>
+      </div>
       <div className="p-6 sm:p-8">
         <header
           className="rounded-[26px] border p-5"
@@ -826,18 +856,18 @@ function SteelFramePreview() {
             className="text-[11px] uppercase tracking-[0.3em]"
             style={{ color: tokens.accent }}
           >
-            Steel Frame
+            Luogu Rankings
           </p>
           <div className="mt-4 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
             <div>
               <h2 className="text-4xl font-semibold tracking-[-0.04em] sm:text-5xl">
-                中性、规整、克制，像一个正式上线的产品壳。
+                用洛谷这套颜色，直接把榜单和趋势做成站点主视觉。
               </h2>
               <p
                 className="mt-4 max-w-3xl text-sm leading-7"
                 style={{ color: tokens.textMuted }}
               >
-                这套不是档案馆气质，也不是强风格首页，而是偏“正常产品”的模块化界面。更容易在后续页面扩展时保持一致。
+                如果首页的核心价值是排行榜和成长曲线，那就不必再塞太多入口。把视觉重心压到榜单、折线图和热力图，会更直接。
               </p>
             </div>
             <MetricGrid tokens={tokens} compact />
@@ -859,14 +889,14 @@ function SteelFramePreview() {
                     Unified Product Shell
                   </p>
                   <h3 className="mt-3 text-3xl font-semibold">
-                    公开页、排行榜、设置页都能挂进同一套灰阶系统。
+                    把评分、变化值和榜单做成主舞台，页面会更有冲劲。
                   </h3>
                 </div>
                 <div
                   className="flex flex-wrap gap-2 text-xs"
                   style={{ color: tokens.textMuted }}
                 >
-                  {["Public", "Settings", "Admin", "Data"].map((item) => (
+                  {["Rankings", "Rating", "Heatmap", "Recent"].map((item) => (
                     <span
                       key={item}
                       className="rounded-full border px-3 py-1.5"
@@ -893,7 +923,7 @@ function SteelFramePreview() {
                       className="text-[11px] uppercase tracking-[0.24em]"
                       style={{ color: tokens.textMuted }}
                     >
-                      Rankings
+                      Top Ranking
                     </p>
                     <span
                       className="text-sm"
@@ -922,7 +952,7 @@ function SteelFramePreview() {
                       className="text-sm"
                       style={{ color: tokens.textSoft }}
                     >
-                      grid
+                      daily new AC
                     </span>
                   </div>
                   <Heatmap tokens={tokens} />
@@ -945,7 +975,7 @@ function SteelFramePreview() {
                   <h4 className="mt-3 text-2xl font-semibold">Trend view</h4>
                 </div>
                 <span className="text-sm" style={{ color: tokens.textSoft }}>
-                  chart in grayscale
+                  growth focus
                 </span>
               </div>
               <TrendChart tokens={tokens} />
@@ -997,9 +1027,9 @@ function SteelFramePreview() {
                 className="mt-4 space-y-3 text-sm leading-7"
                 style={{ color: tokens.textMuted }}
               >
-                <li>没有明显情绪色，后续页面最容易统一。</li>
-                <li>适合作为正式项目的通用壳，风险最低。</li>
-                <li>相应地，辨识度也最低，个性会弱一些。</li>
+                <li>把站点价值压缩成几个高权重模块，气质会更利落。</li>
+                <li>适合首页直接展示 SCNU Rating 排行榜时使用。</li>
+                <li>如果你最在意“核心指标看起来够不够强”，这一版最好用。</li>
               </ul>
             </article>
           </div>
@@ -1075,7 +1105,8 @@ export function RootPage() {
             ACMRank Frontend Preview Lab
           </h1>
           <p className="mt-3 text-sm leading-7 text-neutral-400">
-            按你的反馈，这一轮改成黑白灰主骨架，加低饱和主题色点缀。你选定后，我再把风格约束写入
+            这一轮不再比较不同配色了，直接锁定你认可的洛谷色板，只比较 3
+            种更正常的页面结构。你选定后，我再把风格约束写入
             <code className="mx-1 rounded bg-neutral-800 px-1.5 py-0.5 text-xs text-neutral-200">
               AGENTS.md
             </code>
