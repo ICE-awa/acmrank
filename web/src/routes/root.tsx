@@ -282,24 +282,24 @@ function PreviewSidebar({
 }) {
   return (
     <aside
-      className="h-fit rounded-2xl border p-3"
+      className="min-h-full border-r py-4"
       style={{ background: tokens.panel, borderColor: tokens.line }}
     >
       <p
-        className="px-2 text-[11px] uppercase tracking-[0.28em]"
+        className="px-5 text-[11px] uppercase tracking-[0.28em]"
         style={{ color: tokens.textSoft }}
       >
         导航
       </p>
-      <h3 className="mt-3 px-2 text-lg font-semibold">{title}</h3>
-      <nav className="mt-3 space-y-2">
+      <h3 className="mt-3 px-5 text-lg font-semibold">{title}</h3>
+      <nav className="mt-3 space-y-1">
         {items.map((item, index) => (
           <a
             key={item}
             href="#"
-            className="flex items-center justify-between rounded-xl border px-3 py-2.5 text-sm no-underline transition-[background-color,border-color] duration-200"
+            className="flex items-center justify-between border-l-2 px-5 py-2.5 text-sm no-underline transition-[background-color,border-color] duration-200"
             style={{
-              borderColor: index === 0 ? tokens.accent : tokens.line,
+              borderLeftColor: index === 0 ? tokens.accent : "transparent",
               background: index === 0 ? tokens.accentSoft : tokens.panelAlt,
               color: index === 0 ? tokens.text : tokens.textMuted,
             }}
@@ -360,6 +360,39 @@ function MetricGrid({
             {card.label}
           </p>
           <p className="mt-2 text-2xl font-semibold">{card.value}</p>
+          <p className="mt-1 text-sm" style={{ color: tokens.textSoft }}>
+            {card.detail}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MetricStrip({
+  cards,
+  tokens,
+}: {
+  cards: MetricCard[];
+  tokens: Tokens;
+}) {
+  return (
+    <div className="grid gap-2 sm:grid-cols-3">
+      {cards.map((card, index) => (
+        <div
+          key={card.label}
+          className="px-1 py-1 sm:px-3"
+          style={{
+            borderLeft: index === 0 ? "none" : `1px solid ${tokens.line}`,
+          }}
+        >
+          <p
+            className="text-[11px] uppercase tracking-[0.2em]"
+            style={{ color: card.highlight ? tokens.accent : tokens.textMuted }}
+          >
+            {card.label}
+          </p>
+          <p className="mt-1.5 text-2xl font-semibold">{card.value}</p>
           <p className="mt-1 text-sm" style={{ color: tokens.textSoft }}>
             {card.detail}
           </p>
@@ -543,14 +576,14 @@ function DashboardLayout({
     <Stage tokens={tokens}>
       <TopBar tokens={tokens} />
 
-      <div className="grid gap-4 p-4 sm:p-5 xl:grid-cols-[228px_minmax(0,1fr)]">
+      <div className="grid xl:grid-cols-[228px_minmax(0,1fr)]">
         <PreviewSidebar
           title={sidebarTitle}
           items={sidebarItems}
           tokens={tokens}
         />
 
-        <div className="space-y-4">
+        <div className="space-y-4 p-4 sm:p-5">
           <Panel
             style={{ background: tokens.panel, borderColor: tokens.line }}
             className="px-5 py-4"
@@ -715,51 +748,86 @@ function RankingPreview() {
         "平台拆分",
       ]}
     >
-      <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
-        <SectionHead title="榜单概览" detail="今日快照" tokens={tokens} />
-        <MetricGrid cards={metricCards} tokens={tokens} />
-      </Panel>
-
-      <div className="grid gap-4 xl:grid-cols-[1.06fr_0.94fr]">
-        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
-          <SectionHead
-            title="排行榜"
-            detail="按 SCNU Rating 排序"
-            tokens={tokens}
-          />
-          <RankingList tokens={tokens} />
-        </Panel>
-
-        <div className="space-y-4">
-          <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
-            <SectionHead
-              title="评分走势"
-              detail="近 12 个时间点"
-              tokens={tokens}
-            />
-            <TrendChart tokens={tokens} />
-          </Panel>
-          <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
-            <SectionHead
-              title="Daily New AC"
-              detail="绿色热力图"
-              tokens={tokens}
-            />
-            <Heatmap tokens={tokens} />
-          </Panel>
+      <section
+        className="overflow-hidden rounded-2xl border"
+        style={{ background: tokens.panel, borderColor: tokens.line }}
+      >
+        <div className="px-5 py-4">
+          <p
+            className="text-sm font-medium"
+            style={{ color: tokens.textMuted }}
+          >
+            今日快照
+          </p>
+          <div className="mt-3">
+            <MetricStrip cards={metricCards} tokens={tokens} />
+          </div>
         </div>
-      </div>
 
-      <div className="grid gap-4 xl:grid-cols-[1fr_1fr]">
-        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
-          <SectionHead title="近期过题" detail="榜单下钻" tokens={tokens} />
-          <ProblemTable tokens={tokens} rows={problemRows.slice(0, 3)} />
-        </Panel>
-        <Panel style={{ background: tokens.panel, borderColor: tokens.line }}>
-          <SectionHead title="平台拆分" detail="已通过题分布" tokens={tokens} />
-          <PlatformBreakdown tokens={tokens} />
-        </Panel>
-      </div>
+        <div
+          className="border-t px-5 py-4"
+          style={{ borderColor: tokens.line }}
+        >
+          <div className="grid gap-5 xl:grid-cols-[1.06fr_0.94fr]">
+            <div>
+              <p
+                className="mb-3 text-sm font-medium"
+                style={{ color: tokens.textMuted }}
+              >
+                排行榜（SCNU Rating）
+              </p>
+              <RankingList tokens={tokens} />
+            </div>
+
+            <div className="space-y-5">
+              <div>
+                <p
+                  className="mb-3 text-sm font-medium"
+                  style={{ color: tokens.textMuted }}
+                >
+                  评分走势
+                </p>
+                <TrendChart tokens={tokens} />
+              </div>
+              <div>
+                <p
+                  className="mb-3 text-sm font-medium"
+                  style={{ color: tokens.textMuted }}
+                >
+                  Daily New AC（绿色热力图）
+                </p>
+                <Heatmap tokens={tokens} />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div
+          className="border-t px-5 py-4"
+          style={{ borderColor: tokens.line }}
+        >
+          <div className="grid gap-5 xl:grid-cols-[1fr_1fr]">
+            <div>
+              <p
+                className="mb-3 text-sm font-medium"
+                style={{ color: tokens.textMuted }}
+              >
+                近期过题
+              </p>
+              <ProblemTable tokens={tokens} rows={problemRows.slice(0, 3)} />
+            </div>
+            <div>
+              <p
+                className="mb-3 text-sm font-medium"
+                style={{ color: tokens.textMuted }}
+              >
+                平台拆分
+              </p>
+              <PlatformBreakdown tokens={tokens} />
+            </div>
+          </div>
+        </div>
+      </section>
     </DashboardLayout>
   );
 }
