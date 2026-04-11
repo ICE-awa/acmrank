@@ -129,6 +129,12 @@ func TestCodeforcesClientFetchProfileWrapsUnderlyingTransportError(t *testing.T)
 		}),
 	}
 
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("FetchProfile() panicked: %v", recovered)
+		}
+	}()
+
 	_, err := client.FetchProfile(context.Background(), "tourist")
 	if !errors.Is(err, ErrCodeforcesAPI) {
 		t.Fatalf("FetchProfile() error = %v, want wrapped %v", err, ErrCodeforcesAPI)
