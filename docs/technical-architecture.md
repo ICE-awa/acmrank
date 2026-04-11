@@ -236,12 +236,14 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - `GET /api/v1/users/me`
 - `GET /api/v1/accounts`
 - `POST /api/v1/accounts`
+- `DELETE /api/v1/accounts/:id`
 - `POST /api/v1/accounts/:id/sync`
 
 ### 9.3 管理接口
 - `GET /api/v1/admin/platform-accounts`
 - `POST /api/v1/admin/platform-accounts/:id/verify`
 - `POST /api/v1/admin/platform-accounts/:id/disable`
+- `POST /api/v1/admin/platform-accounts/:id/reject`
 - `GET /api/v1/admin/sync-jobs`
 - `GET /api/v1/admin/config`
 - `PUT /api/v1/admin/config`
@@ -255,6 +257,11 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - 鉴权模型固定为 `JWT AT + RT + Cookie`。
 - `AT` 与 `RT` 都由服务端写入 `HttpOnly Cookie`。
 - 当前尚未接入真实邮件通道，因此 `register` 响应会直接返回一次性邮箱验证 token，仅作为本地开发和自动化测试阶段的临时方案。
+
+### 9.6 T06 当前落地说明
+- 平台账号绑定接口已支持新增、删除、查询以及审核状态流转。
+- 平台账号唯一归属目前通过数据库中的 `UNIQUE (platform, handle)` 约束保证。
+- 管理端审核接口当前通过配置项 `ACMRANK_ADMIN_USERNAMES` 控制可访问的站内用户名列表，后续如引入专门角色模型再替换。
 
 ## 10. 前端结构
 

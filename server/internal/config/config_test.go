@@ -56,6 +56,10 @@ func TestLoadDefaultsForAPI(t *testing.T) {
 	if cfg.CookieSecure {
 		t.Fatal("Load() CookieSecure should default to false")
 	}
+
+	if len(cfg.AdminUsernames) != 0 {
+		t.Fatalf("Load() AdminUsernames len = %d, want 0", len(cfg.AdminUsernames))
+	}
 }
 
 func TestLoadHonorsOverrides(t *testing.T) {
@@ -70,6 +74,7 @@ func TestLoadHonorsOverrides(t *testing.T) {
 	t.Setenv("ACMRANK_AUTH_REFRESH_TOKEN_TTL", "240h")
 	t.Setenv("ACMRANK_AUTH_EMAIL_VERIFY_TTL", "48h")
 	t.Setenv("ACMRANK_AUTH_COOKIE_SECURE", "true")
+	t.Setenv("ACMRANK_ADMIN_USERNAMES", "admin, operator ")
 
 	cfg, err := Load(appmeta.ServiceScheduler)
 	if err != nil {
@@ -118,6 +123,10 @@ func TestLoadHonorsOverrides(t *testing.T) {
 
 	if !cfg.CookieSecure {
 		t.Fatal("Load() CookieSecure should honor override")
+	}
+
+	if len(cfg.AdminUsernames) != 2 || cfg.AdminUsernames[0] != "admin" || cfg.AdminUsernames[1] != "operator" {
+		t.Fatalf("Load() AdminUsernames = %#v, want [admin operator]", cfg.AdminUsernames)
 	}
 }
 

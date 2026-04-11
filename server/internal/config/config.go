@@ -30,6 +30,7 @@ type Config struct {
 	RefreshTokenTTL    time.Duration
 	EmailVerifyTTL     time.Duration
 	CookieSecure       bool
+	AdminUsernames     []string
 }
 
 func Load(service appmeta.ServiceName) (Config, error) {
@@ -107,6 +108,7 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		RefreshTokenTTL:    refreshTokenTTL,
 		EmailVerifyTTL:     emailVerifyTTL,
 		CookieSecure:       cookieSecure,
+		AdminUsernames:     csvValue("ACMRANK_ADMIN_USERNAMES"),
 	}, nil
 }
 
@@ -161,4 +163,24 @@ func boolValue(key string, fallback bool) (bool, error) {
 	}
 
 	return parsed, nil
+}
+
+func csvValue(key string) []string {
+	raw, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return nil
+	}
+
+	values := strings.Split(raw, ",")
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+
+		result = append(result, trimmed)
+	}
+
+	return result
 }
