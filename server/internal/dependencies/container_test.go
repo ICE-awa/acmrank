@@ -8,6 +8,7 @@ import (
 
 	"github.com/ICE-awa/acmrank/server/internal/appmeta"
 	"github.com/ICE-awa/acmrank/server/internal/model"
+	"github.com/nats-io/nats.go"
 )
 
 func TestStatusesProbesDependenciesEachTime(t *testing.T) {
@@ -151,5 +152,37 @@ func TestNATSConnectionNameIncludesService(t *testing.T) {
 
 	if got := natsConnectionName(appmeta.ServiceScheduler); got != "acmrank-scheduler" {
 		t.Fatalf("natsConnectionName() = %q, want %q", got, "acmrank-scheduler")
+	}
+}
+
+func TestProbeNATSRespectsCanceledContextBeforeFlush(t *testing.T) {
+	t.Parallel()
+
+	originalFlush := natsFlushTimeout
+	defer func() {
+		natsFlushTimeout = originalFlush
+	}()
+
+	called := false
+	natsFlushTimeout = func(*nats.Conn, time.Duration) error {
+		called = true
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	status := probeNATS(ctx, &nats.Conn{}, time.Second)
+
+	if status.Reachable {
+		t.Fatal("probeNATS() should not mark canceled probe as reachable")
+	}
+
+	if status.Message != context.Canceled.Error() {
+		t.Fatalf("probeNATS() message = %q, want %q", status.Message, context.Canceled.Error())
+	}
+
+	if called {
+		t.Fatal("probeNATS() should not flush when context is already canceled")
 	}
 }

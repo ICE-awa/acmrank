@@ -17,6 +17,10 @@ import (
 
 type dependencyProbe func(context.Context) model.DependencyHealth
 
+var natsFlushTimeout = func(conn *nats.Conn, timeout time.Duration) error {
+	return conn.FlushTimeout(timeout)
+}
+
 type Container struct {
 	startedAt       time.Time
 	connectTimeout  time.Duration
@@ -60,7 +64,7 @@ func New(ctx context.Context, cfg config.Config) (*Container, error) {
 	}
 	container.nats = natsConn
 	container.natsProbeFn = func(probeCtx context.Context) model.DependencyHealth {
-		return probeNATS(container.nats, container.connectTimeout)
+		return probeNATS(probeCtx, container.nats, container.connectTimeout)
 	}
 
 	return container, nil
@@ -268,7 +272,11 @@ func probeRedis(
 	return status
 }
 
-func probeNATS(conn *nats.Conn, timeout time.Duration) model.DependencyHealth {
+func probeNATS(
+	ctx context.Context,
+	conn *nats.Conn,
+	timeout time.Duration,
+) model.DependencyHealth {
 	status := model.DependencyHealth{
 		Name:       "nats",
 		Configured: conn != nil,
@@ -278,7 +286,25 @@ func probeNATS(conn *nats.Conn, timeout time.Duration) model.DependencyHealth {
 		return status
 	}
 
-	if err := conn.FlushTimeout(timeout); err != nil {
+	probeCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	if err := probeCtx.Err(); err != nil {
+		status.Message = err.Error()
+		return status
+	}
+
+	flushTimeout := timeout
+	if deadline, ok := probeCtx.Deadline(); ok {
+		remaining := time.Until(deadline)
+		if remaining <= 0 {
+			status.Message = context.DeadlineExceeded.Error()
+			return status
+		}
+		flushTimeout = remaining
+	}
+
+	if err := natsFlushTimeout(conn, flushTimeout); err != nil {
 		status.Message = err.Error()
 		return status
 	}
