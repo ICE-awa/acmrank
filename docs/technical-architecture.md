@@ -146,6 +146,9 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - `contest_ac_summary`
   - 以“用户 + 平台 + 比赛”为粒度
   - 维护该场比赛 `AC` 了哪些题
+- `platform_contest_history`
+  - 以“平台账号 + 比赛”为粒度
+  - 维护比赛名次与 `rating` 变化历史
 - `profile_snapshot`
   - 平台资料与原生 `rating`
 - `award_record`
@@ -180,6 +183,7 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - 主链路：官方 API。
 - 兜底：`Clist`。
 - `AC` 事实以 `user.status verdict = OK` 为优先来源。
+- 比赛历史以 `user.rating` 为优先来源。
 - 展示分数取所有已验证账号中的最高 `maxRating`。
 
 ### 7.3 AtCoder
@@ -234,10 +238,14 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/users/me`
+- `GET /api/v1/users/me/codeforces/problem-facts`
+- `GET /api/v1/users/me/codeforces/contest-ac-summaries`
 - `GET /api/v1/accounts`
 - `POST /api/v1/accounts`
 - `DELETE /api/v1/accounts/:id`
 - `POST /api/v1/accounts/:id/sync`
+- `GET /api/v1/accounts/:id/codeforces/profile`
+- `GET /api/v1/accounts/:id/codeforces/contest-histories`
 
 ### 9.3 管理接口
 - `GET /api/v1/admin/platform-accounts`
@@ -263,6 +271,17 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - 平台账号唯一归属目前通过数据库中的 `UNIQUE (platform, handle)` 约束保证。
 - 管理端审核接口当前通过配置项 `ACMRANK_ADMIN_USERNAMES` 控制可访问的站内用户名列表，后续如引入专门角色模型再替换。
 - 账号列表接口当前支持 `limit / offset` 分页参数，默认页大小为 `50`，最大页大小为 `100`。
+
+### 9.7 T07 当前落地说明
+- 当前 `Codeforces` 主链路已接入官方 API `user.info / user.status / user.rating`。
+- 当前手动同步入口为 `POST /api/v1/accounts/:id/sync`，仅允许当前用户同步自己名下、已审核通过的 `Codeforces` 账号。
+- 同步结果会直接写入：
+  - `platform_profile_snapshots`
+  - `accepted_event_raw`
+  - `problem_facts`
+  - `contest_ac_summaries`
+  - `platform_contest_histories`
+- 为了先完成 T07 最小闭环，当前由 `api` 进程直接发起 `Codeforces` 官方 API 请求；后续再迁移到独立 `sync-worker` 和异步投递链路，但不改变当前落库模型与查询接口。
 
 ## 10. 前端结构
 

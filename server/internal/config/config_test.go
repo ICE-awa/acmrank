@@ -60,6 +60,14 @@ func TestLoadDefaultsForAPI(t *testing.T) {
 	if len(cfg.AdminUsernames) != 0 {
 		t.Fatalf("Load() AdminUsernames len = %d, want 0", len(cfg.AdminUsernames))
 	}
+
+	if cfg.CodeforcesAPIBaseURL != "https://codeforces.com/api" {
+		t.Fatalf("Load() CodeforcesAPIBaseURL = %q, want %q", cfg.CodeforcesAPIBaseURL, "https://codeforces.com/api")
+	}
+
+	if cfg.CodeforcesAPITimeout != 10*time.Second {
+		t.Fatalf("Load() CodeforcesAPITimeout = %v, want %v", cfg.CodeforcesAPITimeout, 10*time.Second)
+	}
 }
 
 func TestLoadHonorsOverrides(t *testing.T) {
@@ -75,6 +83,8 @@ func TestLoadHonorsOverrides(t *testing.T) {
 	t.Setenv("ACMRANK_AUTH_EMAIL_VERIFY_TTL", "48h")
 	t.Setenv("ACMRANK_AUTH_COOKIE_SECURE", "true")
 	t.Setenv("ACMRANK_ADMIN_USERNAMES", "admin, operator ")
+	t.Setenv("ACMRANK_CODEFORCES_API_BASE_URL", "https://cf.example.test/api")
+	t.Setenv("ACMRANK_CODEFORCES_API_TIMEOUT", "14s")
 
 	cfg, err := Load(appmeta.ServiceScheduler)
 	if err != nil {
@@ -127,6 +137,14 @@ func TestLoadHonorsOverrides(t *testing.T) {
 
 	if len(cfg.AdminUsernames) != 2 || cfg.AdminUsernames[0] != "admin" || cfg.AdminUsernames[1] != "operator" {
 		t.Fatalf("Load() AdminUsernames = %#v, want [admin operator]", cfg.AdminUsernames)
+	}
+
+	if cfg.CodeforcesAPIBaseURL != "https://cf.example.test/api" {
+		t.Fatalf("Load() CodeforcesAPIBaseURL = %q, want %q", cfg.CodeforcesAPIBaseURL, "https://cf.example.test/api")
+	}
+
+	if cfg.CodeforcesAPITimeout != 14*time.Second {
+		t.Fatalf("Load() CodeforcesAPITimeout = %v, want %v", cfg.CodeforcesAPITimeout, 14*time.Second)
 	}
 }
 

@@ -11,26 +11,28 @@ import (
 )
 
 type Config struct {
-	Service            appmeta.ServiceName
-	Version            string
-	GinMode            string
-	HTTPAddr           string
-	DatabaseURL        string
-	RedisAddr          string
-	NATSURL            string
-	ConnectTimeout     time.Duration
-	ShutdownTimeout    time.Duration
-	ReadHeaderTimeout  time.Duration
-	ReadTimeout        time.Duration
-	WriteTimeout       time.Duration
-	IdleTimeout        time.Duration
-	AccessTokenSecret  string
-	RefreshTokenSecret string
-	AccessTokenTTL     time.Duration
-	RefreshTokenTTL    time.Duration
-	EmailVerifyTTL     time.Duration
-	CookieSecure       bool
-	AdminUsernames     []string
+	Service              appmeta.ServiceName
+	Version              string
+	GinMode              string
+	HTTPAddr             string
+	DatabaseURL          string
+	RedisAddr            string
+	NATSURL              string
+	ConnectTimeout       time.Duration
+	ShutdownTimeout      time.Duration
+	ReadHeaderTimeout    time.Duration
+	ReadTimeout          time.Duration
+	WriteTimeout         time.Duration
+	IdleTimeout          time.Duration
+	AccessTokenSecret    string
+	RefreshTokenSecret   string
+	AccessTokenTTL       time.Duration
+	RefreshTokenTTL      time.Duration
+	EmailVerifyTTL       time.Duration
+	CookieSecure         bool
+	AdminUsernames       []string
+	CodeforcesAPIBaseURL string
+	CodeforcesAPITimeout time.Duration
 }
 
 func Load(service appmeta.ServiceName) (Config, error) {
@@ -83,32 +85,39 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		return Config{}, err
 	}
 
+	codeforcesAPITimeout, err := durationValue("ACMRANK_CODEFORCES_API_TIMEOUT", 10*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cookieSecure, err := boolValue("ACMRANK_AUTH_COOKIE_SECURE", false)
 	if err != nil {
 		return Config{}, err
 	}
 
 	return Config{
-		Service:            service,
-		Version:            stringValue("ACMRANK_VERSION", "dev"),
-		GinMode:            stringValue("GIN_MODE", "release"),
-		HTTPAddr:           stringValue(serviceHTTPAddrEnv(service), defaultHTTPAddr(service)),
-		DatabaseURL:        stringValue("ACMRANK_DATABASE_URL", "postgres://acmrank:acmrank_dev@127.0.0.1:5432/acmrank?sslmode=disable"),
-		RedisAddr:          stringValue("ACMRANK_REDIS_ADDR", "127.0.0.1:6379"),
-		NATSURL:            stringValue("ACMRANK_NATS_URL", "nats://127.0.0.1:4222"),
-		ConnectTimeout:     connectTimeout,
-		ShutdownTimeout:    shutdownTimeout,
-		ReadHeaderTimeout:  readHeaderTimeout,
-		ReadTimeout:        readTimeout,
-		WriteTimeout:       writeTimeout,
-		IdleTimeout:        idleTimeout,
-		AccessTokenSecret:  stringValue("ACMRANK_AUTH_ACCESS_TOKEN_SECRET", "acmrank-dev-access-secret"),
-		RefreshTokenSecret: stringValue("ACMRANK_AUTH_REFRESH_TOKEN_SECRET", "acmrank-dev-refresh-secret"),
-		AccessTokenTTL:     accessTokenTTL,
-		RefreshTokenTTL:    refreshTokenTTL,
-		EmailVerifyTTL:     emailVerifyTTL,
-		CookieSecure:       cookieSecure,
-		AdminUsernames:     csvValue("ACMRANK_ADMIN_USERNAMES"),
+		Service:              service,
+		Version:              stringValue("ACMRANK_VERSION", "dev"),
+		GinMode:              stringValue("GIN_MODE", "release"),
+		HTTPAddr:             stringValue(serviceHTTPAddrEnv(service), defaultHTTPAddr(service)),
+		DatabaseURL:          stringValue("ACMRANK_DATABASE_URL", "postgres://acmrank:acmrank_dev@127.0.0.1:5432/acmrank?sslmode=disable"),
+		RedisAddr:            stringValue("ACMRANK_REDIS_ADDR", "127.0.0.1:6379"),
+		NATSURL:              stringValue("ACMRANK_NATS_URL", "nats://127.0.0.1:4222"),
+		ConnectTimeout:       connectTimeout,
+		ShutdownTimeout:      shutdownTimeout,
+		ReadHeaderTimeout:    readHeaderTimeout,
+		ReadTimeout:          readTimeout,
+		WriteTimeout:         writeTimeout,
+		IdleTimeout:          idleTimeout,
+		AccessTokenSecret:    stringValue("ACMRANK_AUTH_ACCESS_TOKEN_SECRET", "acmrank-dev-access-secret"),
+		RefreshTokenSecret:   stringValue("ACMRANK_AUTH_REFRESH_TOKEN_SECRET", "acmrank-dev-refresh-secret"),
+		AccessTokenTTL:       accessTokenTTL,
+		RefreshTokenTTL:      refreshTokenTTL,
+		EmailVerifyTTL:       emailVerifyTTL,
+		CookieSecure:         cookieSecure,
+		AdminUsernames:       csvValue("ACMRANK_ADMIN_USERNAMES"),
+		CodeforcesAPIBaseURL: stringValue("ACMRANK_CODEFORCES_API_BASE_URL", "https://codeforces.com/api"),
+		CodeforcesAPITimeout: codeforcesAPITimeout,
 	}, nil
 }
 

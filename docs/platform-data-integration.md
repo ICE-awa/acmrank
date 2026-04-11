@@ -89,6 +89,7 @@
 ### 5.4 规范化规则
 - `problem_key = CF-{contestId}{index}`
 - `accepted_at` 取首次 `OK` 的提交时间
+- 比赛历史以 `user.rating` 返回的 `contestId / contestName / rank / oldRating / newRating / ratingUpdateTimeSeconds` 为标准化输入
 - 平台展示分数取所有已验证账号中的最高 `maxRating`
 - 同一用户同平台多账号按 `problem_key` 去重
 
@@ -199,3 +200,9 @@
 - 任一平台账号只能归属一个站内用户。
 - 未审核通过的账号不能进入聚合与排行榜统计。
 - 接入层只负责同步，不负责定义用户公开页展示逻辑。
+- `Codeforces` 当前已落库的主链路结果至少包括：
+  - `platform_profile_snapshots`
+  - `accepted_event_raw`
+  - `problem_facts`
+  - `contest_ac_summaries`
+  - `platform_contest_histories`

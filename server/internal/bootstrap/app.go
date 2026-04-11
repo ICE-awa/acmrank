@@ -12,6 +12,7 @@ import (
 	"github.com/ICE-awa/acmrank/server/internal/config"
 	"github.com/ICE-awa/acmrank/server/internal/dependencies"
 	handlerv1 "github.com/ICE-awa/acmrank/server/internal/handler/v1"
+	"github.com/ICE-awa/acmrank/server/internal/integration"
 	"github.com/ICE-awa/acmrank/server/internal/repository"
 	"github.com/ICE-awa/acmrank/server/internal/service"
 	"github.com/gin-gonic/gin"
@@ -105,6 +106,7 @@ func registerAPIRoutes(
 
 	userRepository := repository.NewUserRepository(dependencySet.Database())
 	platformAccountRepository := repository.NewPlatformAccountRepository(dependencySet.Database())
+	codeforcesSyncRepository := repository.NewCodeforcesSyncRepository(dependencySet.Database())
 	authStateRepository := repository.NewAuthStateRepository(dependencySet.Redis())
 	authService := service.NewAuthService(
 		userRepository,
@@ -118,6 +120,13 @@ func registerAPIRoutes(
 	userHandler := handlerv1.NewUserHandler()
 	platformAccountService := service.NewPlatformAccountService(platformAccountRepository)
 	platformAccountHandler := handlerv1.NewPlatformAccountHandler(platformAccountService)
+	codeforcesClient := integration.NewCodeforcesClient(cfg.CodeforcesAPIBaseURL, cfg.CodeforcesAPITimeout)
+	codeforcesService := service.NewCodeforcesSyncService(
+		platformAccountRepository,
+		codeforcesSyncRepository,
+		codeforcesClient,
+	)
+	codeforcesHandler := handlerv1.NewCodeforcesHandler(codeforcesService)
 
 	authGroup := v1.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -128,12 +137,17 @@ func registerAPIRoutes(
 
 	usersGroup := v1.Group("/users")
 	usersGroup.GET("/me", authMiddleware.RequireAuthenticated(), userHandler.GetMe)
+	usersGroup.GET("/me/codeforces/problem-facts", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListProblemFacts)
+	usersGroup.GET("/me/codeforces/contest-ac-summaries", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListContestSummaries)
 
 	accountsGroup := v1.Group("/accounts")
 	accountsGroup.Use(authMiddleware.RequireAuthenticated())
 	accountsGroup.GET("", platformAccountHandler.ListMine)
 	accountsGroup.POST("", platformAccountHandler.Create)
 	accountsGroup.DELETE("/:id", platformAccountHandler.Delete)
+	accountsGroup.POST("/:id/sync", codeforcesHandler.Sync)
+	accountsGroup.GET("/:id/codeforces/profile", codeforcesHandler.GetLatestProfile)
+	accountsGroup.GET("/:id/codeforces/contest-histories", codeforcesHandler.ListContestHistories)
 
 	adminGroup := v1.Group("/admin")
 	adminGroup.Use(authMiddleware.RequireAuthenticated(), authMiddleware.RequireAdmin())
