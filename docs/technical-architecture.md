@@ -222,31 +222,39 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 ## 9. API 边界
 
 ### 9.1 公开接口
-- `GET /api/public/users/:username`
-- `GET /api/public/users/:username/problems`
-- `GET /api/public/users/:username/awards`
-- `GET /api/public/rankings`
+- `GET /api/v1/public/users/:username`
+- `GET /api/v1/public/users/:username/problems`
+- `GET /api/v1/public/users/:username/awards`
+- `GET /api/v1/public/rankings`
 
 ### 9.2 用户接口
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `POST /api/auth/logout`
-- `GET /api/accounts`
-- `POST /api/accounts`
-- `POST /api/accounts/:id/sync`
+- `POST /api/v1/auth/register`
+- `POST /api/v1/auth/verify-email`
+- `POST /api/v1/auth/login`
+- `POST /api/v1/auth/refresh`
+- `POST /api/v1/auth/logout`
+- `GET /api/v1/users/me`
+- `GET /api/v1/accounts`
+- `POST /api/v1/accounts`
+- `POST /api/v1/accounts/:id/sync`
 
 ### 9.3 管理接口
-- `GET /api/admin/platform-accounts`
-- `POST /api/admin/platform-accounts/:id/verify`
-- `POST /api/admin/platform-accounts/:id/disable`
-- `GET /api/admin/sync-jobs`
-- `GET /api/admin/config`
-- `PUT /api/admin/config`
+- `GET /api/v1/admin/platform-accounts`
+- `POST /api/v1/admin/platform-accounts/:id/verify`
+- `POST /api/v1/admin/platform-accounts/:id/disable`
+- `GET /api/v1/admin/sync-jobs`
+- `GET /api/v1/admin/config`
+- `PUT /api/v1/admin/config`
 
 ### 9.4 扩展接口
-- `POST /api/extension/atcoder/init`
-- `POST /api/extension/atcoder/upload`
-- `POST /api/extension/atcoder/complete`
+- `POST /api/v1/extension/atcoder/init`
+- `POST /api/v1/extension/atcoder/upload`
+- `POST /api/v1/extension/atcoder/complete`
+
+### 9.5 T05 当前落地说明
+- 鉴权模型固定为 `JWT AT + RT + Cookie`。
+- `AT` 与 `RT` 都由服务端写入 `HttpOnly Cookie`。
+- 当前尚未接入真实邮件通道，因此 `register` 响应会直接返回一次性邮箱验证 token，仅作为本地开发和自动化测试阶段的临时方案。
 
 ## 10. 前端结构
 

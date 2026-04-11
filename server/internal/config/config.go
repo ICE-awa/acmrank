@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -10,19 +11,25 @@ import (
 )
 
 type Config struct {
-	Service           appmeta.ServiceName
-	Version           string
-	GinMode           string
-	HTTPAddr          string
-	DatabaseURL       string
-	RedisAddr         string
-	NATSURL           string
-	ConnectTimeout    time.Duration
-	ShutdownTimeout   time.Duration
-	ReadHeaderTimeout time.Duration
-	ReadTimeout       time.Duration
-	WriteTimeout      time.Duration
-	IdleTimeout       time.Duration
+	Service            appmeta.ServiceName
+	Version            string
+	GinMode            string
+	HTTPAddr           string
+	DatabaseURL        string
+	RedisAddr          string
+	NATSURL            string
+	ConnectTimeout     time.Duration
+	ShutdownTimeout    time.Duration
+	ReadHeaderTimeout  time.Duration
+	ReadTimeout        time.Duration
+	WriteTimeout       time.Duration
+	IdleTimeout        time.Duration
+	AccessTokenSecret  string
+	RefreshTokenSecret string
+	AccessTokenTTL     time.Duration
+	RefreshTokenTTL    time.Duration
+	EmailVerifyTTL     time.Duration
+	CookieSecure       bool
 }
 
 func Load(service appmeta.ServiceName) (Config, error) {
@@ -60,20 +67,46 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		return Config{}, err
 	}
 
+	accessTokenTTL, err := durationValue("ACMRANK_AUTH_ACCESS_TOKEN_TTL", 15*time.Minute)
+	if err != nil {
+		return Config{}, err
+	}
+
+	refreshTokenTTL, err := durationValue("ACMRANK_AUTH_REFRESH_TOKEN_TTL", 30*24*time.Hour)
+	if err != nil {
+		return Config{}, err
+	}
+
+	emailVerifyTTL, err := durationValue("ACMRANK_AUTH_EMAIL_VERIFY_TTL", 24*time.Hour)
+	if err != nil {
+		return Config{}, err
+	}
+
+	cookieSecure, err := boolValue("ACMRANK_AUTH_COOKIE_SECURE", false)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
-		Service:           service,
-		Version:           stringValue("ACMRANK_VERSION", "dev"),
-		GinMode:           stringValue("GIN_MODE", "release"),
-		HTTPAddr:          stringValue(serviceHTTPAddrEnv(service), defaultHTTPAddr(service)),
-		DatabaseURL:       stringValue("ACMRANK_DATABASE_URL", "postgres://acmrank:acmrank_dev@127.0.0.1:5432/acmrank?sslmode=disable"),
-		RedisAddr:         stringValue("ACMRANK_REDIS_ADDR", "127.0.0.1:6379"),
-		NATSURL:           stringValue("ACMRANK_NATS_URL", "nats://127.0.0.1:4222"),
-		ConnectTimeout:    connectTimeout,
-		ShutdownTimeout:   shutdownTimeout,
-		ReadHeaderTimeout: readHeaderTimeout,
-		ReadTimeout:       readTimeout,
-		WriteTimeout:      writeTimeout,
-		IdleTimeout:       idleTimeout,
+		Service:            service,
+		Version:            stringValue("ACMRANK_VERSION", "dev"),
+		GinMode:            stringValue("GIN_MODE", "release"),
+		HTTPAddr:           stringValue(serviceHTTPAddrEnv(service), defaultHTTPAddr(service)),
+		DatabaseURL:        stringValue("ACMRANK_DATABASE_URL", "postgres://acmrank:acmrank_dev@127.0.0.1:5432/acmrank?sslmode=disable"),
+		RedisAddr:          stringValue("ACMRANK_REDIS_ADDR", "127.0.0.1:6379"),
+		NATSURL:            stringValue("ACMRANK_NATS_URL", "nats://127.0.0.1:4222"),
+		ConnectTimeout:     connectTimeout,
+		ShutdownTimeout:    shutdownTimeout,
+		ReadHeaderTimeout:  readHeaderTimeout,
+		ReadTimeout:        readTimeout,
+		WriteTimeout:       writeTimeout,
+		IdleTimeout:        idleTimeout,
+		AccessTokenSecret:  stringValue("ACMRANK_AUTH_ACCESS_TOKEN_SECRET", "acmrank-dev-access-secret"),
+		RefreshTokenSecret: stringValue("ACMRANK_AUTH_REFRESH_TOKEN_SECRET", "acmrank-dev-refresh-secret"),
+		AccessTokenTTL:     accessTokenTTL,
+		RefreshTokenTTL:    refreshTokenTTL,
+		EmailVerifyTTL:     emailVerifyTTL,
+		CookieSecure:       cookieSecure,
 	}, nil
 }
 
@@ -111,6 +144,20 @@ func durationValue(key string, fallback time.Duration) (time.Duration, error) {
 	parsed, err := time.ParseDuration(raw)
 	if err != nil {
 		return 0, fmt.Errorf("parse %s: %w", key, err)
+	}
+
+	return parsed, nil
+}
+
+func boolValue(key string, fallback bool) (bool, error) {
+	raw, ok := os.LookupEnv(key)
+	if !ok || raw == "" {
+		return fallback, nil
+	}
+
+	parsed, err := strconv.ParseBool(raw)
+	if err != nil {
+		return false, fmt.Errorf("parse %s: %w", key, err)
 	}
 
 	return parsed, nil

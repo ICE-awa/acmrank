@@ -74,6 +74,18 @@ func (c *Container) StartedAt() time.Time {
 	return c.startedAt
 }
 
+func (c *Container) Database() *pgxpool.Pool {
+	return c.database
+}
+
+func (c *Container) Redis() *redis.Client {
+	return c.redis
+}
+
+func (c *Container) NATS() *nats.Conn {
+	return c.nats
+}
+
 func (c *Container) Statuses(ctx context.Context) []model.DependencyHealth {
 	probes := []struct {
 		name  string
