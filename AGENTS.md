@@ -143,6 +143,21 @@
 - Keep public profile, leaderboard, and account management behavior aligned with the product truths above.
 - Do not redesign the UI around full submission history when the product only exposes accepted lists.
 
+### 6.1 Selected Dashboard Style
+- The confirmed visual direction is a full-width soft dashboard shell rather than a narrow centered demo card.
+- Use a light neutral base with subtle green-grey tinting, white content panels, and restrained shadows.
+- The primary accent is a calm mint-green family, with warm yellow or platform-specific accent colors used only as secondary emphasis.
+- `Daily New AC` must keep a GitHub-style green heatmap treatment.
+- Prefer a left sidebar layout with a clear visual spine, then a wide main content area for charts, tables, and status panels.
+- Keep card rhythm, spacing, and hierarchy close to a mature dashboard product, but all module titles and content must stay ACMRank-specific.
+- Do not introduce irrelevant finance, banking, crypto, or generic SaaS copy into ACMRank pages.
+
+### 6.2 Frontend Responsiveness
+- Public-facing pages must adapt cleanly across desktop, tablet, and mobile without horizontal scrolling at `320px` width.
+- Large dashboard shells should still visually occupy the main browser viewport on desktop instead of collapsing into a small centered island.
+- When the layout compresses, preserve information hierarchy by stacking panels vertically before shrinking critical charts or tables into unreadable fragments.
+- Left sidebar navigation may collapse or simplify on smaller screens, but the primary navigation affordance must remain obvious and usable.
+
 ## 7. Testing And Verification
 
 ### 7.1 General Rule
