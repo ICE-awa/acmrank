@@ -13,34 +13,53 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+type dependencyProbe func(context.Context) model.DependencyHealth
+
 type Container struct {
-	startedAt time.Time
-	database  *pgxpool.Pool
-	redis     *redis.Client
-	nats      *nats.Conn
-	statuses  []model.DependencyHealth
+	startedAt       time.Time
+	connectTimeout  time.Duration
+	database        *pgxpool.Pool
+	redis           *redis.Client
+	nats            *nats.Conn
+	postgresProbeFn dependencyProbe
+	redisProbeFn    dependencyProbe
+	natsProbeFn     dependencyProbe
 }
 
 func New(ctx context.Context, cfg config.Config) (*Container, error) {
 	container := &Container{
-		startedAt: time.Now().UTC(),
-		statuses:  make([]model.DependencyHealth, 0, 3),
+		startedAt:      time.Now().UTC(),
+		connectTimeout: cfg.ConnectTimeout,
 	}
 
-	postgresPool, postgresStatus, err := newPostgres(ctx, cfg.DatabaseURL, cfg.ConnectTimeout)
+	postgresPool, err := newPostgres(ctx, cfg.DatabaseURL, cfg.ConnectTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("configure postgres: %w", err)
 	}
 	container.database = postgresPool
-	container.statuses = append(container.statuses, postgresStatus)
+	container.postgresProbeFn = func(probeCtx context.Context) model.DependencyHealth {
+		return probePostgres(probeCtx, container.database, container.connectTimeout)
+	}
 
-	redisClient, redisStatus := newRedis(ctx, cfg.RedisAddr, cfg.ConnectTimeout)
+	redisClient, err := newRedis(ctx, cfg.RedisAddr, cfg.ConnectTimeout)
+	if err != nil {
+		_ = container.Close()
+		return nil, fmt.Errorf("configure redis: %w", err)
+	}
 	container.redis = redisClient
-	container.statuses = append(container.statuses, redisStatus)
+	container.redisProbeFn = func(probeCtx context.Context) model.DependencyHealth {
+		return probeRedis(probeCtx, container.redis, container.connectTimeout)
+	}
 
-	natsConn, natsStatus := newNATS(cfg.NATSURL, cfg.ConnectTimeout)
+	natsConn, err := newNATS(cfg.NATSURL, cfg.ConnectTimeout)
+	if err != nil {
+		_ = container.Close()
+		return nil, fmt.Errorf("configure nats: %w", err)
+	}
 	container.nats = natsConn
-	container.statuses = append(container.statuses, natsStatus)
+	container.natsProbeFn = func(probeCtx context.Context) model.DependencyHealth {
+		return probeNATS(container.nats, container.connectTimeout)
+	}
 
 	return container, nil
 }
@@ -49,11 +68,12 @@ func (c *Container) StartedAt() time.Time {
 	return c.startedAt
 }
 
-func (c *Container) Statuses() []model.DependencyHealth {
-	statuses := make([]model.DependencyHealth, len(c.statuses))
-	copy(statuses, c.statuses)
-
-	return statuses
+func (c *Container) Statuses(ctx context.Context) []model.DependencyHealth {
+	return []model.DependencyHealth{
+		c.runProbe(ctx, "postgres", c.postgresProbeFn),
+		c.runProbe(ctx, "redis", c.redisProbeFn),
+		c.runProbe(ctx, "nats", c.natsProbeFn),
+	}
 }
 
 func (c *Container) Close() error {
@@ -80,18 +100,14 @@ func newPostgres(
 	ctx context.Context,
 	databaseURL string,
 	timeout time.Duration,
-) (*pgxpool.Pool, model.DependencyHealth, error) {
-	status := model.DependencyHealth{Name: "postgres"}
+) (*pgxpool.Pool, error) {
 	if databaseURL == "" {
-		status.Message = "not configured"
-		return nil, status, nil
+		return nil, errors.New("database URL is required")
 	}
-
-	status.Configured = true
 
 	poolConfig, err := pgxpool.ParseConfig(databaseURL)
 	if err != nil {
-		return nil, status, err
+		return nil, err
 	}
 
 	connectCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -99,33 +115,25 @@ func newPostgres(
 
 	pool, err := pgxpool.NewWithConfig(connectCtx, poolConfig)
 	if err != nil {
-		status.Message = err.Error()
-		return nil, status, nil
+		return nil, err
 	}
 
 	if err := pool.Ping(connectCtx); err != nil {
-		status.Message = err.Error()
 		pool.Close()
-		return nil, status, nil
+		return nil, err
 	}
 
-	status.Reachable = true
-	status.Message = "connected"
-	return pool, status, nil
+	return pool, nil
 }
 
 func newRedis(
 	ctx context.Context,
 	addr string,
 	timeout time.Duration,
-) (*redis.Client, model.DependencyHealth) {
-	status := model.DependencyHealth{Name: "redis"}
+) (*redis.Client, error) {
 	if addr == "" {
-		status.Message = "not configured"
-		return nil, status
+		return nil, errors.New("redis address is required")
 	}
-
-	status.Configured = true
 
 	client := redis.NewClient(&redis.Options{
 		Addr: addr,
@@ -135,27 +143,20 @@ func newRedis(
 	defer cancel()
 
 	if err := client.Ping(connectCtx).Err(); err != nil {
-		status.Message = err.Error()
 		_ = client.Close()
-		return nil, status
+		return nil, err
 	}
 
-	status.Reachable = true
-	status.Message = "connected"
-	return client, status
+	return client, nil
 }
 
 func newNATS(
 	natsURL string,
 	timeout time.Duration,
-) (*nats.Conn, model.DependencyHealth) {
-	status := model.DependencyHealth{Name: "nats"}
+) (*nats.Conn, error) {
 	if natsURL == "" {
-		status.Message = "not configured"
-		return nil, status
+		return nil, errors.New("nats URL is required")
 	}
-
-	status.Configured = true
 
 	conn, err := nats.Connect(
 		natsURL,
@@ -163,11 +164,99 @@ func newNATS(
 		nats.Name("acmrank-bootstrap"),
 	)
 	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func probePostgres(
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	timeout time.Duration,
+) model.DependencyHealth {
+	status := model.DependencyHealth{
+		Name:       "postgres",
+		Configured: pool != nil,
+	}
+	if pool == nil {
+		status.Message = "not initialized"
+		return status
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	if err := pool.Ping(probeCtx); err != nil {
 		status.Message = err.Error()
-		return nil, status
+		return status
 	}
 
 	status.Reachable = true
 	status.Message = "connected"
-	return conn, status
+	return status
+}
+
+func probeRedis(
+	ctx context.Context,
+	client *redis.Client,
+	timeout time.Duration,
+) model.DependencyHealth {
+	status := model.DependencyHealth{
+		Name:       "redis",
+		Configured: client != nil,
+	}
+	if client == nil {
+		status.Message = "not initialized"
+		return status
+	}
+
+	probeCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	if err := client.Ping(probeCtx).Err(); err != nil {
+		status.Message = err.Error()
+		return status
+	}
+
+	status.Reachable = true
+	status.Message = "connected"
+	return status
+}
+
+func probeNATS(conn *nats.Conn, timeout time.Duration) model.DependencyHealth {
+	status := model.DependencyHealth{
+		Name:       "nats",
+		Configured: conn != nil,
+	}
+	if conn == nil {
+		status.Message = "not initialized"
+		return status
+	}
+
+	if err := conn.FlushTimeout(timeout); err != nil {
+		status.Message = err.Error()
+		return status
+	}
+
+	status.Reachable = true
+	status.Message = "connected"
+	return status
+}
+
+func (c *Container) runProbe(
+	ctx context.Context,
+	name string,
+	probe dependencyProbe,
+) model.DependencyHealth {
+	if probe == nil {
+		return model.DependencyHealth{
+			Name:       name,
+			Configured: false,
+			Reachable:  false,
+			Message:    "probe not configured",
+		}
+	}
+
+	return probe(ctx)
 }

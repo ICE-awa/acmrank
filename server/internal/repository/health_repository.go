@@ -10,7 +10,7 @@ import (
 
 type HealthDependencySource interface {
 	StartedAt() time.Time
-	Statuses() []model.DependencyHealth
+	Statuses(context.Context) []model.DependencyHealth
 }
 
 type HealthRepository struct {
@@ -31,12 +31,12 @@ func NewHealthRepository(
 	}
 }
 
-func (r *HealthRepository) Snapshot(_ context.Context) (model.HealthSnapshot, error) {
+func (r *HealthRepository) Snapshot(ctx context.Context) (model.HealthSnapshot, error) {
 	return model.HealthSnapshot{
 		Service:      string(r.service),
 		Version:      r.version,
 		StartedAt:    r.source.StartedAt(),
 		CheckedAt:    time.Now().UTC(),
-		Dependencies: r.source.Statuses(),
+		Dependencies: r.source.Statuses(ctx),
 	}, nil
 }
