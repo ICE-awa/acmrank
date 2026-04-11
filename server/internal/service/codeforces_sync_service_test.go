@@ -25,9 +25,9 @@ func (s stubCodeforcesPlatformAccountStore) GetByID(
 type stubCodeforcesSyncStore struct {
 	saveSyncFn           func(context.Context, repository.SaveCodeforcesSyncParams) error
 	getLatestProfileFn   func(context.Context, int64) (model.PlatformProfileSnapshot, error)
-	listContestHistoryFn func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error)
-	listProblemFactsFn   func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error)
-	listContestSummaryFn func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error)
+	listContestHistoryFn func(context.Context, int64, repository.ListPlatformSyncFilter) ([]model.PlatformContestHistory, error)
+	listProblemFactsFn   func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error)
+	listContestSummaryFn func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ContestACSummary, error)
 }
 
 func (s stubCodeforcesSyncStore) SaveSync(
@@ -47,7 +47,7 @@ func (s stubCodeforcesSyncStore) GetLatestProfileSnapshot(
 func (s stubCodeforcesSyncStore) ListContestHistoriesByAccountID(
 	ctx context.Context,
 	accountID int64,
-	filter repository.ListCodeforcesSyncFilter,
+	filter repository.ListPlatformSyncFilter,
 ) ([]model.PlatformContestHistory, error) {
 	return s.listContestHistoryFn(ctx, accountID, filter)
 }
@@ -56,7 +56,7 @@ func (s stubCodeforcesSyncStore) ListProblemFactsByUserIDAndPlatform(
 	ctx context.Context,
 	siteUserID int64,
 	platform model.Platform,
-	filter repository.ListCodeforcesSyncFilter,
+	filter repository.ListPlatformSyncFilter,
 ) ([]model.ProblemFact, error) {
 	return s.listProblemFactsFn(ctx, siteUserID, platform, filter)
 }
@@ -65,7 +65,7 @@ func (s stubCodeforcesSyncStore) ListContestSummariesByUserIDAndPlatform(
 	ctx context.Context,
 	siteUserID int64,
 	platform model.Platform,
-	filter repository.ListCodeforcesSyncFilter,
+	filter repository.ListPlatformSyncFilter,
 ) ([]model.ContestACSummary, error) {
 	return s.listContestSummaryFn(ctx, siteUserID, platform, filter)
 }
@@ -171,13 +171,13 @@ func TestCodeforcesSyncServiceSyncPersistsFetchedData(t *testing.T) {
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, nil
 			},
-			listContestHistoryFn: func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error) {
+			listContestHistoryFn: func(context.Context, int64, repository.ListPlatformSyncFilter) ([]model.PlatformContestHistory, error) {
 				return nil, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
-			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
+			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ContestACSummary, error) {
 				return nil, nil
 			},
 		},
@@ -284,13 +284,13 @@ func TestCodeforcesSyncServiceSyncRejectsUnverifiedAccount(t *testing.T) {
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, nil
 			},
-			listContestHistoryFn: func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error) {
+			listContestHistoryFn: func(context.Context, int64, repository.ListPlatformSyncFilter) ([]model.PlatformContestHistory, error) {
 				return nil, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
-			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
+			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ContestACSummary, error) {
 				return nil, nil
 			},
 		},
@@ -341,13 +341,13 @@ func TestCodeforcesSyncServiceGetLatestProfileMapsNotFound(t *testing.T) {
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, repository.ErrPlatformSyncDataNotFound
 			},
-			listContestHistoryFn: func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error) {
+			listContestHistoryFn: func(context.Context, int64, repository.ListPlatformSyncFilter) ([]model.PlatformContestHistory, error) {
 				return nil, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
-			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
+			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ContestACSummary, error) {
 				return nil, nil
 			},
 		},
@@ -400,13 +400,13 @@ func TestCodeforcesSyncServiceEnqueueSyncCreatesQueuedJob(t *testing.T) {
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, nil
 			},
-			listContestHistoryFn: func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error) {
+			listContestHistoryFn: func(context.Context, int64, repository.ListPlatformSyncFilter) ([]model.PlatformContestHistory, error) {
 				return nil, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
-			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
+			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ContestACSummary, error) {
 				return nil, nil
 			},
 		},
@@ -477,13 +477,13 @@ func TestCodeforcesSyncServiceProcessNextQueuedSyncRunsAndMarksSuccess(t *testin
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, nil
 			},
-			listContestHistoryFn: func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error) {
+			listContestHistoryFn: func(context.Context, int64, repository.ListPlatformSyncFilter) ([]model.PlatformContestHistory, error) {
 				return nil, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
-			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
+			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ContestACSummary, error) {
 				return nil, nil
 			},
 		},

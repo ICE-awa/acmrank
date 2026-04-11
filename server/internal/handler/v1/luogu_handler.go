@@ -13,7 +13,7 @@ import (
 
 type LuoguSyncService interface {
 	GetLatestProfile(ctx context.Context, siteUserID int64, accountID int64) (model.PlatformProfileSnapshot, error)
-	ListProblemFacts(ctx context.Context, siteUserID int64, input service.ListCodeforcesSyncInput) ([]model.ProblemFact, error)
+	ListProblemFacts(ctx context.Context, siteUserID int64, input service.ListPlatformSyncInput) ([]model.ProblemFact, error)
 }
 
 type LuoguHandler struct {
@@ -63,7 +63,7 @@ func (h *LuoguHandler) ListProblemFacts(c *gin.Context) {
 		return
 	}
 
-	input, err := listCodeforcesSyncInputFromQuery(c)
+	input, err := listPlatformSyncInputFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

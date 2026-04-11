@@ -24,7 +24,7 @@ type LuoguPlatformAccountStore interface {
 type LuoguSyncStore interface {
 	SaveSync(ctx context.Context, params repository.SaveLuoguSyncParams) error
 	GetLatestProfileSnapshot(ctx context.Context, accountID int64) (model.PlatformProfileSnapshot, error)
-	ListProblemFactsByUserIDAndPlatform(ctx context.Context, siteUserID int64, platform model.Platform, filter repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error)
+	ListProblemFactsByUserIDAndPlatform(ctx context.Context, siteUserID int64, platform model.Platform, filter repository.ListPlatformSyncFilter) ([]model.ProblemFact, error)
 }
 
 type LuoguSyncJobStore interface {
@@ -165,9 +165,9 @@ func (s *LuoguSyncService) GetLatestProfile(
 func (s *LuoguSyncService) ListProblemFacts(
 	ctx context.Context,
 	siteUserID int64,
-	input ListCodeforcesSyncInput,
+	input ListPlatformSyncInput,
 ) ([]model.ProblemFact, error) {
-	filter, err := normalizeListCodeforcesSyncInput(input)
+	filter, err := normalizeListPlatformSyncInput(input)
 	if err != nil {
 		return nil, err
 	}

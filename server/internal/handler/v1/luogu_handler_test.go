@@ -15,7 +15,7 @@ import (
 
 type stubLuoguHTTPService struct {
 	getLatestProfileFn func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error)
-	listProblemFactsFn func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ProblemFact, error)
+	listProblemFactsFn func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ProblemFact, error)
 }
 
 func (s stubLuoguHTTPService) GetLatestProfile(
@@ -29,7 +29,7 @@ func (s stubLuoguHTTPService) GetLatestProfile(
 func (s stubLuoguHTTPService) ListProblemFacts(
 	ctx context.Context,
 	siteUserID int64,
-	input service.ListCodeforcesSyncInput,
+	input service.ListPlatformSyncInput,
 ) ([]model.ProblemFact, error) {
 	return s.listProblemFactsFn(ctx, siteUserID, input)
 }
@@ -58,7 +58,7 @@ func TestLuoguHandlerGetLatestProfileReturnsSnapshot(t *testing.T) {
 				CreatedAt:         now,
 			}, nil
 		},
-		listProblemFactsFn: func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ProblemFact, error) {
+		listProblemFactsFn: func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ProblemFact, error) {
 			return nil, nil
 		},
 	})
@@ -93,7 +93,7 @@ func TestLuoguHandlerListProblemFactsAppliesPagination(t *testing.T) {
 		getLatestProfileFn: func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error) {
 			return model.PlatformProfileSnapshot{}, nil
 		},
-		listProblemFactsFn: func(_ context.Context, siteUserID int64, input service.ListCodeforcesSyncInput) ([]model.ProblemFact, error) {
+		listProblemFactsFn: func(_ context.Context, siteUserID int64, input service.ListPlatformSyncInput) ([]model.ProblemFact, error) {
 			if siteUserID != 7 || input.Limit != 20 || input.Offset != 5 {
 				t.Fatalf("ListProblemFacts() siteUserID=%d input=%+v", siteUserID, input)
 			}

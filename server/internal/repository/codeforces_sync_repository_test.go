@@ -15,7 +15,7 @@ import (
 type stubCodeforcesSyncDB struct {
 	queryFn    func(context.Context, string, ...any) (pgx.Rows, error)
 	queryRowFn func(context.Context, string, ...any) pgx.Row
-	beginTxFn  func(context.Context) (codeforcesSyncTx, error)
+	beginTxFn  func(context.Context) (platformSyncTx, error)
 }
 
 func (s *stubCodeforcesSyncDB) Query(
@@ -153,7 +153,7 @@ func TestCodeforcesSyncRepositoryListContestHistoriesAppliesPagination(t *testin
 		queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{} },
 	})
 
-	items, err := repository.ListContestHistoriesByAccountID(context.Background(), 4, ListCodeforcesSyncFilter{
+	items, err := repository.ListContestHistoriesByAccountID(context.Background(), 4, ListPlatformSyncFilter{
 		Limit:  25,
 		Offset: 10,
 	})
@@ -175,7 +175,7 @@ func TestCodeforcesSyncRepositorySaveSyncUpdatesLastSyncedAt(t *testing.T) {
 		queryFn:    func(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil },
 		queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{} },
 	})
-	repository.beginTx = func(context.Context) (codeforcesSyncTx, error) {
+	repository.beginTx = func(context.Context) (platformSyncTx, error) {
 		return stubCodeforcesSyncTx{
 			execFn: func(_ context.Context, query string, args ...any) (pgconn.CommandTag, error) {
 				if strings.Contains(query, "UPDATE platform_accounts") {
@@ -223,12 +223,12 @@ func TestCodeforcesSyncRepositorySaveSyncUpdatesLastSyncedAt(t *testing.T) {
 			Handle:     "tourist",
 		},
 		SyncedAt: now,
-		Profile: CodeforcesProfileSnapshotInput{
+		Profile: PlatformProfileSnapshotInput{
 			DisplayName: "tourist",
 			Source:      model.SyncSourceCodeforcesAPI,
 			FetchedAt:   now,
 		},
-		AcceptedEvents: []CodeforcesAcceptedEventInput{
+		AcceptedEvents: []PlatformAcceptedEventInput{
 			{
 				Handle:       "tourist",
 				ProblemKey:   "CF-1000A",

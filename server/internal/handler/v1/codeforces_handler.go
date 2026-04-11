@@ -16,9 +16,9 @@ import (
 type CodeforcesSyncService interface {
 	EnqueueSync(ctx context.Context, siteUserID int64, accountID int64) (model.SyncJob, error)
 	GetLatestProfile(ctx context.Context, siteUserID int64, accountID int64) (model.PlatformProfileSnapshot, error)
-	ListContestHistories(ctx context.Context, siteUserID int64, accountID int64, input service.ListCodeforcesSyncInput) ([]model.PlatformContestHistory, error)
-	ListProblemFacts(ctx context.Context, siteUserID int64, input service.ListCodeforcesSyncInput) ([]model.ProblemFact, error)
-	ListContestSummaries(ctx context.Context, siteUserID int64, input service.ListCodeforcesSyncInput) ([]model.ContestACSummary, error)
+	ListContestHistories(ctx context.Context, siteUserID int64, accountID int64, input service.ListPlatformSyncInput) ([]model.PlatformContestHistory, error)
+	ListProblemFacts(ctx context.Context, siteUserID int64, input service.ListPlatformSyncInput) ([]model.ProblemFact, error)
+	ListContestSummaries(ctx context.Context, siteUserID int64, input service.ListPlatformSyncInput) ([]model.ContestACSummary, error)
 }
 
 type CodeforcesHandler struct {
@@ -98,7 +98,7 @@ func (h *CodeforcesHandler) ListContestHistories(c *gin.Context) {
 		return
 	}
 
-	input, err := listCodeforcesSyncInputFromQuery(c)
+	input, err := listPlatformSyncInputFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -122,7 +122,7 @@ func (h *CodeforcesHandler) ListProblemFacts(c *gin.Context) {
 		return
 	}
 
-	input, err := listCodeforcesSyncInputFromQuery(c)
+	input, err := listPlatformSyncInputFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -146,7 +146,7 @@ func (h *CodeforcesHandler) ListContestSummaries(c *gin.Context) {
 		return
 	}
 
-	input, err := listCodeforcesSyncInputFromQuery(c)
+	input, err := listPlatformSyncInputFromQuery(c)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -163,18 +163,18 @@ func (h *CodeforcesHandler) ListContestSummaries(c *gin.Context) {
 	})
 }
 
-func listCodeforcesSyncInputFromQuery(c *gin.Context) (service.ListCodeforcesSyncInput, error) {
+func listPlatformSyncInputFromQuery(c *gin.Context) (service.ListPlatformSyncInput, error) {
 	limit, err := parseOptionalNonNegativeIntQuery(c, "limit")
 	if err != nil {
-		return service.ListCodeforcesSyncInput{}, err
+		return service.ListPlatformSyncInput{}, err
 	}
 
 	offset, err := parseOptionalNonNegativeIntQuery(c, "offset")
 	if err != nil {
-		return service.ListCodeforcesSyncInput{}, err
+		return service.ListPlatformSyncInput{}, err
 	}
 
-	return service.ListCodeforcesSyncInput{
+	return service.ListPlatformSyncInput{
 		Limit:  limit,
 		Offset: offset,
 	}, nil

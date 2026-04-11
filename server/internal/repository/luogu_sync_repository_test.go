@@ -20,7 +20,7 @@ func TestLuoguSyncRepositorySaveSyncUpdatesLastSyncedAt(t *testing.T) {
 		queryFn:    func(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil },
 		queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{} },
 	})
-	repository.beginTx = func(context.Context) (codeforcesSyncTx, error) {
+	repository.beginTx = func(context.Context) (platformSyncTx, error) {
 		return stubCodeforcesSyncTx{
 			execFn: func(_ context.Context, query string, args ...any) (pgconn.CommandTag, error) {
 				if strings.Contains(query, "UPDATE platform_accounts") {

@@ -16,9 +16,9 @@ import (
 type stubCodeforcesHTTPService struct {
 	enqueueSyncFn        func(context.Context, int64, int64) (model.SyncJob, error)
 	getLatestProfileFn   func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error)
-	listContestHistoryFn func(context.Context, int64, int64, service.ListCodeforcesSyncInput) ([]model.PlatformContestHistory, error)
-	listProblemFactsFn   func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ProblemFact, error)
-	listContestSummaryFn func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ContestACSummary, error)
+	listContestHistoryFn func(context.Context, int64, int64, service.ListPlatformSyncInput) ([]model.PlatformContestHistory, error)
+	listProblemFactsFn   func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ProblemFact, error)
+	listContestSummaryFn func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ContestACSummary, error)
 }
 
 func (s stubCodeforcesHTTPService) EnqueueSync(
@@ -41,7 +41,7 @@ func (s stubCodeforcesHTTPService) ListContestHistories(
 	ctx context.Context,
 	siteUserID int64,
 	accountID int64,
-	input service.ListCodeforcesSyncInput,
+	input service.ListPlatformSyncInput,
 ) ([]model.PlatformContestHistory, error) {
 	return s.listContestHistoryFn(ctx, siteUserID, accountID, input)
 }
@@ -49,7 +49,7 @@ func (s stubCodeforcesHTTPService) ListContestHistories(
 func (s stubCodeforcesHTTPService) ListProblemFacts(
 	ctx context.Context,
 	siteUserID int64,
-	input service.ListCodeforcesSyncInput,
+	input service.ListPlatformSyncInput,
 ) ([]model.ProblemFact, error) {
 	return s.listProblemFactsFn(ctx, siteUserID, input)
 }
@@ -57,7 +57,7 @@ func (s stubCodeforcesHTTPService) ListProblemFacts(
 func (s stubCodeforcesHTTPService) ListContestSummaries(
 	ctx context.Context,
 	siteUserID int64,
-	input service.ListCodeforcesSyncInput,
+	input service.ListPlatformSyncInput,
 ) ([]model.ContestACSummary, error) {
 	return s.listContestSummaryFn(ctx, siteUserID, input)
 }
@@ -88,13 +88,13 @@ func TestCodeforcesHandlerSyncReturnsAcceptedJob(t *testing.T) {
 		getLatestProfileFn: func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error) {
 			return model.PlatformProfileSnapshot{}, nil
 		},
-		listContestHistoryFn: func(context.Context, int64, int64, service.ListCodeforcesSyncInput) ([]model.PlatformContestHistory, error) {
+		listContestHistoryFn: func(context.Context, int64, int64, service.ListPlatformSyncInput) ([]model.PlatformContestHistory, error) {
 			return nil, nil
 		},
-		listProblemFactsFn: func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ProblemFact, error) {
+		listProblemFactsFn: func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ProblemFact, error) {
 			return nil, nil
 		},
-		listContestSummaryFn: func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ContestACSummary, error) {
+		listContestSummaryFn: func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ContestACSummary, error) {
 			return nil, nil
 		},
 	})
@@ -136,13 +136,13 @@ func TestCodeforcesHandlerGetLatestProfileReturnsSnapshot(t *testing.T) {
 				CreatedAt:         now,
 			}, nil
 		},
-		listContestHistoryFn: func(context.Context, int64, int64, service.ListCodeforcesSyncInput) ([]model.PlatformContestHistory, error) {
+		listContestHistoryFn: func(context.Context, int64, int64, service.ListPlatformSyncInput) ([]model.PlatformContestHistory, error) {
 			return nil, nil
 		},
-		listProblemFactsFn: func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ProblemFact, error) {
+		listProblemFactsFn: func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ProblemFact, error) {
 			return nil, nil
 		},
-		listContestSummaryFn: func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ContestACSummary, error) {
+		listContestSummaryFn: func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ContestACSummary, error) {
 			return nil, nil
 		},
 	})
@@ -180,10 +180,10 @@ func TestCodeforcesHandlerListProblemFactsAppliesPagination(t *testing.T) {
 		getLatestProfileFn: func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error) {
 			return model.PlatformProfileSnapshot{}, nil
 		},
-		listContestHistoryFn: func(context.Context, int64, int64, service.ListCodeforcesSyncInput) ([]model.PlatformContestHistory, error) {
+		listContestHistoryFn: func(context.Context, int64, int64, service.ListPlatformSyncInput) ([]model.PlatformContestHistory, error) {
 			return nil, nil
 		},
-		listProblemFactsFn: func(_ context.Context, siteUserID int64, input service.ListCodeforcesSyncInput) ([]model.ProblemFact, error) {
+		listProblemFactsFn: func(_ context.Context, siteUserID int64, input service.ListPlatformSyncInput) ([]model.ProblemFact, error) {
 			if siteUserID != 7 || input.Limit != 20 || input.Offset != 5 {
 				t.Fatalf("ListProblemFacts() siteUserID=%d input=%+v", siteUserID, input)
 			}
@@ -206,7 +206,7 @@ func TestCodeforcesHandlerListProblemFactsAppliesPagination(t *testing.T) {
 				},
 			}, nil
 		},
-		listContestSummaryFn: func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ContestACSummary, error) {
+		listContestSummaryFn: func(context.Context, int64, service.ListPlatformSyncInput) ([]model.ContestACSummary, error) {
 			return nil, nil
 		},
 	})

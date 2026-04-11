@@ -19,8 +19,8 @@ var (
 )
 
 const (
-	defaultCodeforcesListLimit = 50
-	maxCodeforcesListLimit     = 100
+	defaultPlatformSyncListLimit = 50
+	maxPlatformSyncListLimit     = 100
 )
 
 type CodeforcesPlatformAccountStore interface {
@@ -30,9 +30,9 @@ type CodeforcesPlatformAccountStore interface {
 type CodeforcesSyncStore interface {
 	SaveSync(ctx context.Context, params repository.SaveCodeforcesSyncParams) error
 	GetLatestProfileSnapshot(ctx context.Context, accountID int64) (model.PlatformProfileSnapshot, error)
-	ListContestHistoriesByAccountID(ctx context.Context, accountID int64, filter repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error)
-	ListProblemFactsByUserIDAndPlatform(ctx context.Context, siteUserID int64, platform model.Platform, filter repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error)
-	ListContestSummariesByUserIDAndPlatform(ctx context.Context, siteUserID int64, platform model.Platform, filter repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error)
+	ListContestHistoriesByAccountID(ctx context.Context, accountID int64, filter repository.ListPlatformSyncFilter) ([]model.PlatformContestHistory, error)
+	ListProblemFactsByUserIDAndPlatform(ctx context.Context, siteUserID int64, platform model.Platform, filter repository.ListPlatformSyncFilter) ([]model.ProblemFact, error)
+	ListContestSummariesByUserIDAndPlatform(ctx context.Context, siteUserID int64, platform model.Platform, filter repository.ListPlatformSyncFilter) ([]model.ContestACSummary, error)
 }
 
 type CodeforcesSyncJobStore interface {
@@ -48,7 +48,7 @@ type CodeforcesSyncClient interface {
 	FetchContestHistory(ctx context.Context, handle string) ([]integration.CodeforcesContestHistoryEntry, error)
 }
 
-type ListCodeforcesSyncInput struct {
+type ListPlatformSyncInput struct {
 	Limit  int
 	Offset int
 }
@@ -214,7 +214,7 @@ func (s *CodeforcesSyncService) syncAccount(
 	if err := s.syncStore.SaveSync(ctx, repository.SaveCodeforcesSyncParams{
 		Account:  account,
 		SyncedAt: syncedAt,
-		Profile: repository.CodeforcesProfileSnapshotInput{
+		Profile: repository.PlatformProfileSnapshotInput{
 			DisplayName: profile.DisplayName,
 			Rating:      profile.Rating,
 			MaxRating:   profile.MaxRating,
@@ -264,14 +264,14 @@ func (s *CodeforcesSyncService) ListContestHistories(
 	ctx context.Context,
 	siteUserID int64,
 	accountID int64,
-	input ListCodeforcesSyncInput,
+	input ListPlatformSyncInput,
 ) ([]model.PlatformContestHistory, error) {
 	account, err := s.loadOwnedCodeforcesAccount(ctx, siteUserID, accountID)
 	if err != nil {
 		return nil, err
 	}
 
-	filter, err := normalizeListCodeforcesSyncInput(input)
+	filter, err := normalizeListPlatformSyncInput(input)
 	if err != nil {
 		return nil, err
 	}
@@ -287,9 +287,9 @@ func (s *CodeforcesSyncService) ListContestHistories(
 func (s *CodeforcesSyncService) ListProblemFacts(
 	ctx context.Context,
 	siteUserID int64,
-	input ListCodeforcesSyncInput,
+	input ListPlatformSyncInput,
 ) ([]model.ProblemFact, error) {
-	filter, err := normalizeListCodeforcesSyncInput(input)
+	filter, err := normalizeListPlatformSyncInput(input)
 	if err != nil {
 		return nil, err
 	}
@@ -305,9 +305,9 @@ func (s *CodeforcesSyncService) ListProblemFacts(
 func (s *CodeforcesSyncService) ListContestSummaries(
 	ctx context.Context,
 	siteUserID int64,
-	input ListCodeforcesSyncInput,
+	input ListPlatformSyncInput,
 ) ([]model.ContestACSummary, error) {
-	filter, err := normalizeListCodeforcesSyncInput(input)
+	filter, err := normalizeListPlatformSyncInput(input)
 	if err != nil {
 		return nil, err
 	}
@@ -340,25 +340,25 @@ func (s *CodeforcesSyncService) loadOwnedCodeforcesAccount(
 	return account, nil
 }
 
-func normalizeListCodeforcesSyncInput(
-	input ListCodeforcesSyncInput,
-) (repository.ListCodeforcesSyncFilter, error) {
+func normalizeListPlatformSyncInput(
+	input ListPlatformSyncInput,
+) (repository.ListPlatformSyncFilter, error) {
 	switch {
 	case input.Limit < 0:
-		return repository.ListCodeforcesSyncFilter{}, ValidationError{Message: "limit must be greater than or equal to 0"}
+		return repository.ListPlatformSyncFilter{}, ValidationError{Message: "limit must be greater than or equal to 0"}
 	case input.Offset < 0:
-		return repository.ListCodeforcesSyncFilter{}, ValidationError{Message: "offset must be greater than or equal to 0"}
+		return repository.ListPlatformSyncFilter{}, ValidationError{Message: "offset must be greater than or equal to 0"}
 	}
 
 	limit := input.Limit
 	if limit == 0 {
-		limit = defaultCodeforcesListLimit
+		limit = defaultPlatformSyncListLimit
 	}
-	if limit > maxCodeforcesListLimit {
-		limit = maxCodeforcesListLimit
+	if limit > maxPlatformSyncListLimit {
+		limit = maxPlatformSyncListLimit
 	}
 
-	return repository.ListCodeforcesSyncFilter{
+	return repository.ListPlatformSyncFilter{
 		Limit:  limit,
 		Offset: input.Offset,
 	}, nil
@@ -366,10 +366,10 @@ func normalizeListCodeforcesSyncInput(
 
 func toCodeforcesAcceptedEventInputs(
 	submissions []integration.CodeforcesAcceptedSubmission,
-) []repository.CodeforcesAcceptedEventInput {
-	result := make([]repository.CodeforcesAcceptedEventInput, 0, len(submissions))
+) []repository.PlatformAcceptedEventInput {
+	result := make([]repository.PlatformAcceptedEventInput, 0, len(submissions))
 	for _, submission := range submissions {
-		result = append(result, repository.CodeforcesAcceptedEventInput{
+		result = append(result, repository.PlatformAcceptedEventInput{
 			Handle:       submission.Handle,
 			ProblemKey:   submission.ProblemKey,
 			ContestID:    submission.ContestID,

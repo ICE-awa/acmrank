@@ -25,7 +25,7 @@ func (s stubLuoguPlatformAccountStore) GetByID(
 type stubLuoguSyncStore struct {
 	saveSyncFn         func(context.Context, repository.SaveLuoguSyncParams) error
 	getLatestProfileFn func(context.Context, int64) (model.PlatformProfileSnapshot, error)
-	listProblemFactsFn func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error)
+	listProblemFactsFn func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error)
 }
 
 func (s stubLuoguSyncStore) SaveSync(
@@ -46,7 +46,7 @@ func (s stubLuoguSyncStore) ListProblemFactsByUserIDAndPlatform(
 	ctx context.Context,
 	siteUserID int64,
 	platform model.Platform,
-	filter repository.ListCodeforcesSyncFilter,
+	filter repository.ListPlatformSyncFilter,
 ) ([]model.ProblemFact, error) {
 	return s.listProblemFactsFn(ctx, siteUserID, platform, filter)
 }
@@ -139,7 +139,7 @@ func TestLuoguSyncServiceSyncPersistsFetchedData(t *testing.T) {
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
 		},
@@ -216,7 +216,7 @@ func TestLuoguSyncServiceEnqueueSyncUsesLuoguJobType(t *testing.T) {
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
 		},
@@ -266,7 +266,7 @@ func TestLuoguSyncServiceMapsUpstreamNotFound(t *testing.T) {
 			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
 				return model.PlatformProfileSnapshot{}, nil
 			},
-			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListPlatformSyncFilter) ([]model.ProblemFact, error) {
 				return nil, nil
 			},
 		},

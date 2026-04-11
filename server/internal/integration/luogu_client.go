@@ -1,6 +1,7 @@
 package integration
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -280,22 +281,19 @@ func fetchLuoguJSON[T any](
 }
 
 func extractLuoguContextScript(body []byte) ([]byte, error) {
-	const (
-		start = `<script id="lentille-context" type="application/json">`
-		end   = `</script>`
-	)
+	startMarker := []byte(`<script id="lentille-context" type="application/json">`)
+	endMarker := []byte(`</script>`)
 
-	content := string(body)
-	startIdx := strings.Index(content, start)
+	startIdx := bytes.Index(body, startMarker)
 	if startIdx == -1 {
 		return nil, fmt.Errorf("%w: missing lentille-context script", ErrLuoguAPI)
 	}
-	startIdx += len(start)
+	startIdx += len(startMarker)
 
-	endIdx := strings.Index(content[startIdx:], end)
+	endIdx := bytes.Index(body[startIdx:], endMarker)
 	if endIdx == -1 {
 		return nil, fmt.Errorf("%w: unterminated lentille-context script", ErrLuoguAPI)
 	}
 
-	return []byte(content[startIdx : startIdx+endIdx]), nil
+	return body[startIdx : startIdx+endIdx], nil
 }

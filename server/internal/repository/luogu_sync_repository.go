@@ -9,7 +9,7 @@ import (
 	"github.com/ICE-awa/acmrank/server/internal/model"
 )
 
-type LuoguProfileSnapshotInput = CodeforcesProfileSnapshotInput
+type LuoguProfileSnapshotInput = PlatformProfileSnapshotInput
 
 type LuoguAcceptedProblemInput struct {
 	Handle      string
@@ -32,12 +32,12 @@ type SaveLuoguSyncParams struct {
 }
 
 type LuoguSyncRepository struct {
-	*CodeforcesSyncRepository
+	*PlatformSyncRepository
 }
 
-func NewLuoguSyncRepository(db codeforcesSyncRepositoryDB) *LuoguSyncRepository {
+func NewLuoguSyncRepository(db platformSyncRepositoryDB) *LuoguSyncRepository {
 	return &LuoguSyncRepository{
-		CodeforcesSyncRepository: NewCodeforcesSyncRepository(db),
+		PlatformSyncRepository: NewPlatformSyncRepository(db),
 	}
 }
 
@@ -163,10 +163,10 @@ func mergeLuoguProblemFact(
 
 func toLuoguAcceptedEventInputs(
 	problems []LuoguAcceptedProblemInput,
-) []CodeforcesAcceptedEventInput {
-	result := make([]CodeforcesAcceptedEventInput, 0, len(problems))
+) []PlatformAcceptedEventInput {
+	result := make([]PlatformAcceptedEventInput, 0, len(problems))
 	for _, problem := range problems {
-		result = append(result, CodeforcesAcceptedEventInput{
+		result = append(result, PlatformAcceptedEventInput{
 			Handle:       problem.Handle,
 			ProblemKey:   problem.ProblemKey,
 			ProblemIndex: problem.ProblemID,
