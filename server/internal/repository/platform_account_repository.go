@@ -149,7 +149,7 @@ JOIN users ON users.id = pa.site_user_id`)
 	builder.WriteString("\nORDER BY pa.created_at DESC, pa.id DESC")
 
 	args = append(args, filter.Limit, filter.Offset)
-	builder.WriteString(fmt.Sprintf("\nLIMIT $%d OFFSET $%d", len(args)-1, len(args)))
+	fmt.Fprintf(&builder, "\nLIMIT $%d OFFSET $%d", len(args)-1, len(args))
 
 	rows, err := r.db.Query(ctx, builder.String(), args...)
 	if err != nil {

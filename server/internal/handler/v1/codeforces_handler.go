@@ -286,32 +286,3 @@ func writeCodeforcesError(c *gin.Context, err error) {
 
 	c.JSON(statusCode, gin.H{"error": message})
 }
-
-func toSyncJobResponse(job model.SyncJob) dtov1.SyncJobResponse {
-	var startedAt *string
-	if job.StartedAt != nil {
-		formatted := job.StartedAt.UTC().Format(time.RFC3339)
-		startedAt = &formatted
-	}
-
-	var finishedAt *string
-	if job.FinishedAt != nil {
-		formatted := job.FinishedAt.UTC().Format(time.RFC3339)
-		finishedAt = &formatted
-	}
-
-	return dtov1.SyncJobResponse{
-		ID:                job.ID,
-		PlatformAccountID: job.PlatformAccountID,
-		Platform:          job.Platform,
-		JobType:           string(job.JobType),
-		Status:            string(job.Status),
-		ScheduledAt:       job.ScheduledAt.UTC().Format(time.RFC3339),
-		StartedAt:         startedAt,
-		FinishedAt:        finishedAt,
-		AttemptCount:      job.AttemptCount,
-		ErrorMessage:      job.ErrorMessage,
-		CreatedAt:         job.CreatedAt.UTC().Format(time.RFC3339),
-		UpdatedAt:         job.UpdatedAt.UTC().Format(time.RFC3339),
-	}
-}

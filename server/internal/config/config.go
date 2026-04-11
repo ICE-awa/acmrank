@@ -33,6 +33,8 @@ type Config struct {
 	AdminUsernames       []string
 	CodeforcesAPIBaseURL string
 	CodeforcesAPITimeout time.Duration
+	LuoguBaseURL         string
+	LuoguTimeout         time.Duration
 }
 
 func Load(service appmeta.ServiceName) (Config, error) {
@@ -90,6 +92,11 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		return Config{}, err
 	}
 
+	luoguTimeout, err := durationValue("ACMRANK_LUOGU_TIMEOUT", 10*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cookieSecure, err := boolValue("ACMRANK_AUTH_COOKIE_SECURE", false)
 	if err != nil {
 		return Config{}, err
@@ -118,6 +125,8 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		AdminUsernames:       csvValue("ACMRANK_ADMIN_USERNAMES"),
 		CodeforcesAPIBaseURL: stringValue("ACMRANK_CODEFORCES_API_BASE_URL", "https://codeforces.com/api"),
 		CodeforcesAPITimeout: codeforcesAPITimeout,
+		LuoguBaseURL:         stringValue("ACMRANK_LUOGU_BASE_URL", "https://www.luogu.com.cn"),
+		LuoguTimeout:         luoguTimeout,
 	}, nil
 }
 

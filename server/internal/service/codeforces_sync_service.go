@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/ICE-awa/acmrank/server/internal/integration"
@@ -446,14 +445,5 @@ func mapCodeforcesClientError(err error) error {
 }
 
 func syncJobErrorMessage(err error) string {
-	message := strings.TrimSpace(err.Error())
-	if message == "" {
-		return "codeforces sync failed"
-	}
-
-	if len(message) <= 512 {
-		return message
-	}
-
-	return message[:512]
+	return syncJobErrorMessageWithDefault(err, "codeforces sync failed")
 }

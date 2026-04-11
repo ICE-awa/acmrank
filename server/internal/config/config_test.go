@@ -68,6 +68,14 @@ func TestLoadDefaultsForAPI(t *testing.T) {
 	if cfg.CodeforcesAPITimeout != 10*time.Second {
 		t.Fatalf("Load() CodeforcesAPITimeout = %v, want %v", cfg.CodeforcesAPITimeout, 10*time.Second)
 	}
+
+	if cfg.LuoguBaseURL != "https://www.luogu.com.cn" {
+		t.Fatalf("Load() LuoguBaseURL = %q, want %q", cfg.LuoguBaseURL, "https://www.luogu.com.cn")
+	}
+
+	if cfg.LuoguTimeout != 10*time.Second {
+		t.Fatalf("Load() LuoguTimeout = %v, want %v", cfg.LuoguTimeout, 10*time.Second)
+	}
 }
 
 func TestLoadHonorsOverrides(t *testing.T) {
@@ -85,6 +93,8 @@ func TestLoadHonorsOverrides(t *testing.T) {
 	t.Setenv("ACMRANK_ADMIN_USERNAMES", "admin, operator ")
 	t.Setenv("ACMRANK_CODEFORCES_API_BASE_URL", "https://cf.example.test/api")
 	t.Setenv("ACMRANK_CODEFORCES_API_TIMEOUT", "14s")
+	t.Setenv("ACMRANK_LUOGU_BASE_URL", "https://luogu.example.test")
+	t.Setenv("ACMRANK_LUOGU_TIMEOUT", "11s")
 
 	cfg, err := Load(appmeta.ServiceScheduler)
 	if err != nil {
@@ -145,6 +155,14 @@ func TestLoadHonorsOverrides(t *testing.T) {
 
 	if cfg.CodeforcesAPITimeout != 14*time.Second {
 		t.Fatalf("Load() CodeforcesAPITimeout = %v, want %v", cfg.CodeforcesAPITimeout, 14*time.Second)
+	}
+
+	if cfg.LuoguBaseURL != "https://luogu.example.test" {
+		t.Fatalf("Load() LuoguBaseURL = %q, want %q", cfg.LuoguBaseURL, "https://luogu.example.test")
+	}
+
+	if cfg.LuoguTimeout != 11*time.Second {
+		t.Fatalf("Load() LuoguTimeout = %v, want %v", cfg.LuoguTimeout, 11*time.Second)
 	}
 }
 
