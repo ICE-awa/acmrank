@@ -17,6 +17,7 @@ type stubUserDB struct {
 	args       []any
 	row        pgx.Row
 	queryRowFn func(context.Context, string, ...any) pgx.Row
+	execFn     func(context.Context, string, ...any) (pgconn.CommandTag, error)
 }
 
 func (s *stubUserDB) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
@@ -28,6 +29,17 @@ func (s *stubUserDB) QueryRow(ctx context.Context, query string, args ...any) pg
 	}
 
 	return s.row
+}
+
+func (s *stubUserDB) Exec(ctx context.Context, query string, args ...any) (pgconn.CommandTag, error) {
+	s.query = query
+	s.args = args
+
+	if s.execFn != nil {
+		return s.execFn(ctx, query, args...)
+	}
+
+	return pgconn.NewCommandTag("DELETE 0"), nil
 }
 
 type stubRow struct {
@@ -241,6 +253,24 @@ func TestUserRepositoryMarkEmailVerifiedReturnsDisabledError(t *testing.T) {
 	_, err := repository.MarkEmailVerified(context.Background(), 1, time.Now().UTC())
 	if !errors.Is(err, ErrUserDisabled) {
 		t.Fatalf("MarkEmailVerified() error = %v, want %v", err, ErrUserDisabled)
+	}
+}
+
+func TestUserRepositoryDeletePendingVerificationUserDeletesPendingUser(t *testing.T) {
+	t.Parallel()
+
+	repository := NewUserRepository(&stubUserDB{
+		execFn: func(_ context.Context, query string, args ...any) (pgconn.CommandTag, error) {
+			if !strings.Contains(query, "DELETE FROM users") {
+				t.Fatalf("unexpected query: %q", query)
+			}
+
+			return pgconn.NewCommandTag("DELETE 1"), nil
+		},
+	})
+
+	if err := repository.DeletePendingVerificationUser(context.Background(), 7); err != nil {
+		t.Fatalf("DeletePendingVerificationUser() error = %v", err)
 	}
 }
 

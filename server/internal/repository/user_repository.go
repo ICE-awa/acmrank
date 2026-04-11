@@ -19,6 +19,7 @@ var (
 
 type userRepositoryDB interface {
 	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
 type CreateUserParams struct {
@@ -160,6 +161,29 @@ RETURNING id, username, email, real_name, status, email_verified_at, created_at,
 	}
 
 	return user, nil
+}
+
+func (r *UserRepository) DeletePendingVerificationUser(
+	ctx context.Context,
+	id int64,
+) error {
+	commandTag, err := r.db.Exec(
+		ctx,
+		`DELETE FROM users
+WHERE id = $1
+  AND status = 'pending_verification'
+  AND email_verified_at IS NULL`,
+		id,
+	)
+	if err != nil {
+		return err
+	}
+
+	if commandTag.RowsAffected() == 0 {
+		return ErrUserNotFound
+	}
+
+	return nil
 }
 
 func (r *UserRepository) getStatusByID(

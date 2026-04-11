@@ -47,6 +47,7 @@ type AuthUserStore interface {
 	GetForLogin(ctx context.Context, username string) (model.User, string, error)
 	GetByID(ctx context.Context, id int64) (model.User, error)
 	MarkEmailVerified(ctx context.Context, id int64, verifiedAt time.Time) (model.User, error)
+	DeletePendingVerificationUser(ctx context.Context, id int64) error
 }
 
 type AuthStateStore interface {
@@ -153,6 +154,13 @@ func (s *AuthService) Register(
 		ExpiresAt: s.now().UTC().Add(s.emailVerifyTTL),
 	}
 	if err := s.stateStore.SaveEmailVerification(ctx, user.ID, verification); err != nil {
+		if cleanupErr := s.userStore.DeletePendingVerificationUser(ctx, user.ID); cleanupErr != nil {
+			return RegisterResult{}, errors.Join(
+				fmt.Errorf("save email verification: %w", err),
+				fmt.Errorf("cleanup pending user: %w", cleanupErr),
+			)
+		}
+
 		return RegisterResult{}, fmt.Errorf("save email verification: %w", err)
 	}
 

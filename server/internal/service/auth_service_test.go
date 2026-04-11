@@ -16,6 +16,7 @@ type stubAuthUserStore struct {
 	getForLoginFn       func(context.Context, string) (model.User, string, error)
 	getByIDFn           func(context.Context, int64) (model.User, error)
 	markEmailVerifiedFn func(context.Context, int64, time.Time) (model.User, error)
+	deletePendingFn     func(context.Context, int64) error
 }
 
 func (s stubAuthUserStore) Create(ctx context.Context, params repository.CreateUserParams) (model.User, error) {
@@ -32,6 +33,10 @@ func (s stubAuthUserStore) GetByID(ctx context.Context, id int64) (model.User, e
 
 func (s stubAuthUserStore) MarkEmailVerified(ctx context.Context, id int64, verifiedAt time.Time) (model.User, error) {
 	return s.markEmailVerifiedFn(ctx, id, verifiedAt)
+}
+
+func (s stubAuthUserStore) DeletePendingVerificationUser(ctx context.Context, id int64) error {
+	return s.deletePendingFn(ctx, id)
 }
 
 type stubAuthStateStore struct {
@@ -117,6 +122,7 @@ func TestAuthServiceRegisterCreatesPendingUserAndVerificationToken(t *testing.T)
 					Status:   model.UserStatusPendingVerification,
 				}, nil
 			},
+			deletePendingFn: func(context.Context, int64) error { return nil },
 		},
 		stubAuthStateStore{
 			saveRefreshSessionFn:   func(context.Context, model.RefreshSession) error { return nil },
@@ -170,6 +176,60 @@ func TestAuthServiceRegisterCreatesPendingUserAndVerificationToken(t *testing.T)
 	}
 }
 
+func TestAuthServiceRegisterDeletesPendingUserWhenVerificationSaveFails(t *testing.T) {
+	t.Parallel()
+
+	deletedUserID := int64(0)
+	service := NewAuthService(
+		stubAuthUserStore{
+			createFn: func(context.Context, repository.CreateUserParams) (model.User, error) {
+				return model.User{
+					ID:       11,
+					Username: "tourist",
+					Email:    "tourist@example.com",
+					RealName: "Tourist",
+					Status:   model.UserStatusPendingVerification,
+				}, nil
+			},
+			deletePendingFn: func(_ context.Context, id int64) error {
+				deletedUserID = id
+				return nil
+			},
+		},
+		stubAuthStateStore{
+			saveRefreshSessionFn:   func(context.Context, model.RefreshSession) error { return nil },
+			getRefreshSessionFn:    func(context.Context, string) (model.RefreshSession, error) { return model.RefreshSession{}, nil },
+			deleteRefreshSessionFn: func(context.Context, string) error { return nil },
+			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error {
+				return errors.New("redis unavailable")
+			},
+			getEmailVerifyFn:    func(context.Context, string) (int64, error) { return 0, nil },
+			deleteEmailVerifyFn: func(context.Context, string) error { return nil },
+		},
+		stubPasswordManager{
+			hashFn:    func(string) (string, error) { return "hashed", nil },
+			compareFn: func(string, string) error { return nil },
+		},
+		stubTokenManager{},
+		24*time.Hour,
+	)
+	service.newVerificationTok = func() (string, error) { return "verify-token", nil }
+
+	_, err := service.Register(context.Background(), RegisterInput{
+		Username: "tourist",
+		Email:    "tourist@example.com",
+		RealName: "Tourist",
+		Password: "password123",
+	})
+	if err == nil {
+		t.Fatal("Register() expected error when verification persistence fails")
+	}
+
+	if deletedUserID != 11 {
+		t.Fatalf("Register() deleted user id = %d, want %d", deletedUserID, 11)
+	}
+}
+
 func TestAuthServiceLoginRejectsPendingVerificationUser(t *testing.T) {
 	t.Parallel()
 
@@ -187,6 +247,7 @@ func TestAuthServiceLoginRejectsPendingVerificationUser(t *testing.T) {
 			},
 			getByIDFn:           func(context.Context, int64) (model.User, error) { return model.User{}, nil },
 			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) { return model.User{}, nil },
+			deletePendingFn:     func(context.Context, int64) error { return nil },
 		},
 		stubAuthStateStore{
 			saveRefreshSessionFn:    func(context.Context, model.RefreshSession) error { return nil },
@@ -238,6 +299,7 @@ func TestAuthServiceRefreshRotatesSession(t *testing.T) {
 			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) {
 				return model.User{}, nil
 			},
+			deletePendingFn: func(context.Context, int64) error { return nil },
 		},
 		stubAuthStateStore{
 			saveRefreshSessionFn: func(_ context.Context, session model.RefreshSession) error {
@@ -412,6 +474,7 @@ func TestAuthServiceVerifyEmailConsumesToken(t *testing.T) {
 					EmailVerifiedAt: &verifiedAt,
 				}, nil
 			},
+			deletePendingFn: func(context.Context, int64) error { return nil },
 		},
 		stubAuthStateStore{
 			saveRefreshSessionFn:   func(context.Context, model.RefreshSession) error { return nil },
@@ -465,6 +528,7 @@ func TestAuthServiceVerifyEmailDoesNotDeleteTokenWhenUserUpdateFails(t *testing.
 			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) {
 				return model.User{}, errors.New("database unavailable")
 			},
+			deletePendingFn: func(context.Context, int64) error { return nil },
 		},
 		stubAuthStateStore{
 			saveRefreshSessionFn:    func(context.Context, model.RefreshSession) error { return nil },
@@ -513,6 +577,7 @@ func TestAuthServiceVerifyEmailReturnsUserDisabledWhenVerificationTargetIsDisabl
 			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) {
 				return model.User{}, repository.ErrUserDisabled
 			},
+			deletePendingFn: func(context.Context, int64) error { return nil },
 		},
 		stubAuthStateStore{
 			saveRefreshSessionFn:    func(context.Context, model.RefreshSession) error { return nil },
@@ -552,6 +617,7 @@ func TestAuthServiceAuthenticateRejectsInvalidAccessToken(t *testing.T) {
 			getForLoginFn:       func(context.Context, string) (model.User, string, error) { return model.User{}, "", nil },
 			getByIDFn:           func(context.Context, int64) (model.User, error) { return model.User{}, nil },
 			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) { return model.User{}, nil },
+			deletePendingFn:     func(context.Context, int64) error { return nil },
 		},
 		stubAuthStateStore{
 			saveRefreshSessionFn:    func(context.Context, model.RefreshSession) error { return nil },

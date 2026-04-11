@@ -266,3 +266,11 @@ func TestAuthHandlerMapsUnauthorizedRefresh(t *testing.T) {
 		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
+
+func TestCookieMaxAgeReturnsDeleteSignalWhenExpiryRoundsToZero(t *testing.T) {
+	t.Parallel()
+
+	if got := cookieMaxAge(time.Now().Add(200 * time.Millisecond)); got != -1 {
+		t.Fatalf("cookieMaxAge() = %d, want %d", got, -1)
+	}
+}

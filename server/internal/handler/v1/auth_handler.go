@@ -223,8 +223,8 @@ func readCookie(c *gin.Context, name string) string {
 
 func cookieMaxAge(expiresAt time.Time) int {
 	seconds := int(time.Until(expiresAt.UTC()).Seconds())
-	if seconds < 0 {
-		return 0
+	if seconds <= 0 {
+		return -1
 	}
 
 	return seconds
