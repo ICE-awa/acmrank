@@ -247,7 +247,7 @@ func fetchCodeforcesAPI[T any](
 
 	httpResponse, err := client.Do(request)
 	if err != nil {
-		return response, fmt.Errorf("%w: request %s: %v", ErrCodeforcesAPI, endpoint, err)
+		return response, fmt.Errorf("%w: request %s: %w", ErrCodeforcesAPI, endpoint, err)
 	}
 	defer httpResponse.Body.Close()
 
@@ -256,7 +256,7 @@ func fetchCodeforcesAPI[T any](
 	}
 
 	if err := json.NewDecoder(httpResponse.Body).Decode(&response); err != nil {
-		return response, fmt.Errorf("%w: decode %s: %v", ErrCodeforcesAPI, endpoint, err)
+		return response, fmt.Errorf("%w: decode %s: %w", ErrCodeforcesAPI, endpoint, err)
 	}
 
 	if response.Status != "OK" {

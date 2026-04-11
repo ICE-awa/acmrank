@@ -2,6 +2,7 @@ package integration
 
 import (
 	"context"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -114,6 +115,26 @@ func TestCodeforcesClientFetchProfileMapsUserNotFound(t *testing.T) {
 
 	if _, err := client.FetchProfile(context.Background(), "missing"); err != ErrCodeforcesUserNotFound {
 		t.Fatalf("FetchProfile() error = %v, want %v", err, ErrCodeforcesUserNotFound)
+	}
+}
+
+func TestCodeforcesClientFetchProfileWrapsUnderlyingTransportError(t *testing.T) {
+	t.Parallel()
+
+	transportErr := errors.New("dial failed")
+	client := NewCodeforcesClient("https://cf.example.test", 3*time.Second)
+	client.httpClient = &http.Client{
+		Transport: roundTripFunc(func(r *http.Request) (*http.Response, error) {
+			return nil, transportErr
+		}),
+	}
+
+	_, err := client.FetchProfile(context.Background(), "tourist")
+	if !errors.Is(err, ErrCodeforcesAPI) {
+		t.Fatalf("FetchProfile() error = %v, want wrapped %v", err, ErrCodeforcesAPI)
+	}
+	if !errors.Is(err, transportErr) {
+		t.Fatalf("FetchProfile() error = %v, want wrapped transport error", err)
 	}
 }
 

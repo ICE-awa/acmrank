@@ -122,7 +122,7 @@ func (s *CodeforcesSyncService) Sync(
 			MaxRating:   profile.MaxRating,
 			ProfileURL:  profile.ProfileURL,
 			Source:      model.SyncSourceCodeforcesAPI,
-			Payload:     []byte(profile.Payload),
+			Payload:     profile.Payload,
 			FetchedAt:   profile.FetchedAt,
 		},
 		AcceptedEvents:   toCodeforcesAcceptedEventInputs(acceptedSubmissions),
@@ -282,7 +282,7 @@ func toCodeforcesAcceptedEventInputs(
 			SubmissionID: submission.SubmissionID,
 			Source:       model.SyncSourceCodeforcesAPI,
 			SourceURL:    submission.SourceURL,
-			Payload:      []byte(submission.Payload),
+			Payload:      submission.Payload,
 			FetchedAt:    submission.FetchedAt,
 		})
 	}
@@ -305,7 +305,7 @@ func toCodeforcesContestHistoryInputs(
 			ParticipatedAt: item.ParticipatedAt,
 			Source:         model.SyncSourceCodeforcesAPI,
 			SourceURL:      item.SourceURL,
-			Payload:        []byte(item.Payload),
+			Payload:        item.Payload,
 			FetchedAt:      item.FetchedAt,
 		})
 	}
