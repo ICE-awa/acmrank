@@ -13,14 +13,20 @@ import (
 )
 
 type stubUserDB struct {
-	query string
-	args  []any
-	row   pgx.Row
+	query      string
+	args       []any
+	row        pgx.Row
+	queryRowFn func(context.Context, string, ...any) pgx.Row
 }
 
-func (s *stubUserDB) QueryRow(_ context.Context, query string, args ...any) pgx.Row {
+func (s *stubUserDB) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
 	s.query = query
 	s.args = args
+
+	if s.queryRowFn != nil {
+		return s.queryRowFn(ctx, query, args...)
+	}
+
 	return s.row
 }
 
@@ -203,6 +209,38 @@ func TestUserRepositoryMarkEmailVerifiedActivatesUser(t *testing.T) {
 
 	if user.EmailVerifiedAt == nil || !user.EmailVerifiedAt.Equal(now) {
 		t.Fatalf("MarkEmailVerified() email verified at = %v, want %v", user.EmailVerifiedAt, now)
+	}
+}
+
+func TestUserRepositoryMarkEmailVerifiedReturnsDisabledError(t *testing.T) {
+	t.Parallel()
+
+	repository := NewUserRepository(&stubUserDB{
+		queryRowFn: func(_ context.Context, query string, args ...any) pgx.Row {
+			switch {
+			case strings.Contains(query, "UPDATE users"):
+				return stubRow{
+					scanFn: func(dest ...any) error {
+						return pgx.ErrNoRows
+					},
+				}
+			case strings.Contains(query, "SELECT status"):
+				return stubRow{
+					scanFn: func(dest ...any) error {
+						*(dest[0].(*model.UserStatus)) = model.UserStatusDisabled
+						return nil
+					},
+				}
+			default:
+				t.Fatalf("unexpected query: %q", query)
+				return stubRow{}
+			}
+		},
+	})
+
+	_, err := repository.MarkEmailVerified(context.Background(), 1, time.Now().UTC())
+	if !errors.Is(err, ErrUserDisabled) {
+		t.Fatalf("MarkEmailVerified() error = %v, want %v", err, ErrUserDisabled)
 	}
 }
 

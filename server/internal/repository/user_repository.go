@@ -12,6 +12,7 @@ import (
 
 var (
 	ErrUserNotFound  = errors.New("user not found")
+	ErrUserDisabled  = errors.New("user disabled")
 	ErrUsernameTaken = errors.New("username already exists")
 	ErrEmailTaken    = errors.New("email already exists")
 )
@@ -142,10 +143,42 @@ RETURNING id, username, email, real_name, status, email_verified_at, created_at,
 		),
 	)
 	if err != nil {
-		return model.User{}, mapUserPersistenceError(err)
+		if !errors.Is(err, pgx.ErrNoRows) {
+			return model.User{}, mapUserPersistenceError(err)
+		}
+
+		status, statusErr := r.getStatusByID(ctx, id)
+		if statusErr != nil {
+			return model.User{}, mapUserPersistenceError(statusErr)
+		}
+
+		if status == model.UserStatusDisabled {
+			return model.User{}, ErrUserDisabled
+		}
+
+		return model.User{}, ErrUserNotFound
 	}
 
 	return user, nil
+}
+
+func (r *UserRepository) getStatusByID(
+	ctx context.Context,
+	id int64,
+) (model.UserStatus, error) {
+	var status model.UserStatus
+	err := r.db.QueryRow(
+		ctx,
+		`SELECT status
+FROM users
+WHERE id = $1`,
+		id,
+	).Scan(&status)
+	if err != nil {
+		return "", err
+	}
+
+	return status, nil
 }
 
 func scanUser(row pgx.Row) (model.User, error) {

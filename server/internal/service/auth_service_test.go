@@ -495,6 +495,54 @@ func TestAuthServiceVerifyEmailDoesNotDeleteTokenWhenUserUpdateFails(t *testing.
 	}
 }
 
+func TestAuthServiceVerifyEmailReturnsUserDisabledWhenVerificationTargetIsDisabled(t *testing.T) {
+	t.Parallel()
+
+	deleted := false
+	service := NewAuthService(
+		stubAuthUserStore{
+			createFn: func(context.Context, repository.CreateUserParams) (model.User, error) {
+				return model.User{}, nil
+			},
+			getForLoginFn: func(context.Context, string) (model.User, string, error) {
+				return model.User{}, "", nil
+			},
+			getByIDFn: func(context.Context, int64) (model.User, error) {
+				return model.User{}, nil
+			},
+			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) {
+				return model.User{}, repository.ErrUserDisabled
+			},
+		},
+		stubAuthStateStore{
+			saveRefreshSessionFn:    func(context.Context, model.RefreshSession) error { return nil },
+			getRefreshSessionFn:     func(context.Context, string) (model.RefreshSession, error) { return model.RefreshSession{}, nil },
+			deleteRefreshSessionFn:  func(context.Context, string) error { return nil },
+			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error { return nil },
+			getEmailVerifyFn:        func(context.Context, string) (int64, error) { return 9, nil },
+			deleteEmailVerifyFn: func(context.Context, string) error {
+				deleted = true
+				return nil
+			},
+		},
+		stubPasswordManager{
+			hashFn:    func(string) (string, error) { return "", nil },
+			compareFn: func(string, string) error { return nil },
+		},
+		stubTokenManager{},
+		24*time.Hour,
+	)
+
+	_, err := service.VerifyEmail(context.Background(), "verify-token")
+	if !errors.Is(err, ErrUserDisabled) {
+		t.Fatalf("VerifyEmail() error = %v, want %v", err, ErrUserDisabled)
+	}
+
+	if deleted {
+		t.Fatal("VerifyEmail() should not delete token when verification target is disabled")
+	}
+}
+
 func TestAuthServiceAuthenticateRejectsInvalidAccessToken(t *testing.T) {
 	t.Parallel()
 

@@ -182,6 +182,9 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) (model.User
 		if errors.Is(err, repository.ErrUserNotFound) {
 			return model.User{}, ErrInvalidEmailVerificationTok
 		}
+		if errors.Is(err, repository.ErrUserDisabled) {
+			return model.User{}, ErrUserDisabled
+		}
 
 		return model.User{}, fmt.Errorf("mark email verified: %w", err)
 	}
