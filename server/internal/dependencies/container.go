@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ICE-awa/acmrank/server/internal/appmeta"
 	"github.com/ICE-awa/acmrank/server/internal/config"
 	"github.com/ICE-awa/acmrank/server/internal/model"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -52,7 +53,7 @@ func New(ctx context.Context, cfg config.Config) (*Container, error) {
 		return probeRedis(probeCtx, container.redis, container.connectTimeout)
 	}
 
-	natsConn, err := newNATS(cfg.NATSURL, cfg.ConnectTimeout)
+	natsConn, err := newNATS(cfg.Service, cfg.NATSURL, cfg.ConnectTimeout)
 	if err != nil {
 		_ = container.Close()
 		return nil, fmt.Errorf("configure nats: %w", err)
@@ -120,11 +121,7 @@ func newPostgres(
 	databaseURL string,
 	timeout time.Duration,
 ) (*pgxpool.Pool, error) {
-	if databaseURL == "" {
-		return nil, errors.New("database URL is required")
-	}
-
-	poolConfig, err := pgxpool.ParseConfig(databaseURL)
+	poolConfig, err := newPostgresPoolConfig(databaseURL, timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -150,13 +147,7 @@ func newRedis(
 	addr string,
 	timeout time.Duration,
 ) (*redis.Client, error) {
-	if addr == "" {
-		return nil, errors.New("redis address is required")
-	}
-
-	client := redis.NewClient(&redis.Options{
-		Addr: addr,
-	})
+	client := redis.NewClient(newRedisOptions(addr, timeout))
 
 	connectCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
@@ -170,6 +161,7 @@ func newRedis(
 }
 
 func newNATS(
+	service appmeta.ServiceName,
 	natsURL string,
 	timeout time.Duration,
 ) (*nats.Conn, error) {
@@ -180,7 +172,7 @@ func newNATS(
 	conn, err := nats.Connect(
 		natsURL,
 		nats.Timeout(timeout),
-		nats.Name("acmrank-bootstrap"),
+		nats.Name(natsConnectionName(service)),
 	)
 	if err != nil {
 		return nil, err
@@ -192,6 +184,34 @@ func newNATS(
 	}
 
 	return conn, nil
+}
+
+func natsConnectionName(service appmeta.ServiceName) string {
+	return fmt.Sprintf("acmrank-%s", service)
+}
+
+func newPostgresPoolConfig(
+	databaseURL string,
+	timeout time.Duration,
+) (*pgxpool.Config, error) {
+	if databaseURL == "" {
+		return nil, errors.New("database URL is required")
+	}
+
+	poolConfig, err := pgxpool.ParseConfig(databaseURL)
+	if err != nil {
+		return nil, err
+	}
+
+	poolConfig.ConnConfig.ConnectTimeout = timeout
+	return poolConfig, nil
+}
+
+func newRedisOptions(addr string, timeout time.Duration) *redis.Options {
+	return &redis.Options{
+		Addr:        addr,
+		DialTimeout: timeout,
+	}
 }
 
 func probePostgres(

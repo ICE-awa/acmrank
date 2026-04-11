@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ICE-awa/acmrank/server/internal/appmeta"
 	"github.com/ICE-awa/acmrank/server/internal/model"
 )
 
@@ -110,7 +111,45 @@ func TestNewRedisReturnsErrorForMissingConfiguration(t *testing.T) {
 func TestNewNATSReturnsErrorForMissingConfiguration(t *testing.T) {
 	t.Parallel()
 
-	if _, err := newNATS("", time.Millisecond); err == nil {
+	if _, err := newNATS(appmeta.ServiceAPI, "", time.Millisecond); err == nil {
 		t.Fatal("newNATS() expected missing configuration error")
+	}
+}
+
+func TestNewPostgresPoolConfigSetsConnectTimeout(t *testing.T) {
+	t.Parallel()
+
+	cfg, err := newPostgresPoolConfig(
+		"postgres://acmrank:acmrank_dev@127.0.0.1:5432/acmrank?sslmode=disable",
+		7*time.Second,
+	)
+	if err != nil {
+		t.Fatalf("newPostgresPoolConfig() error = %v", err)
+	}
+
+	if cfg.ConnConfig.ConnectTimeout != 7*time.Second {
+		t.Fatalf(
+			"newPostgresPoolConfig() ConnectTimeout = %v, want %v",
+			cfg.ConnConfig.ConnectTimeout,
+			7*time.Second,
+		)
+	}
+}
+
+func TestNewRedisOptionsSetsDialTimeout(t *testing.T) {
+	t.Parallel()
+
+	options := newRedisOptions("127.0.0.1:6379", 9*time.Second)
+
+	if options.DialTimeout != 9*time.Second {
+		t.Fatalf("newRedisOptions() DialTimeout = %v, want %v", options.DialTimeout, 9*time.Second)
+	}
+}
+
+func TestNATSConnectionNameIncludesService(t *testing.T) {
+	t.Parallel()
+
+	if got := natsConnectionName(appmeta.ServiceScheduler); got != "acmrank-scheduler" {
+		t.Fatalf("natsConnectionName() = %q, want %q", got, "acmrank-scheduler")
 	}
 }

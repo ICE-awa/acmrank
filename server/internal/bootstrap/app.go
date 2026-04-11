@@ -46,7 +46,7 @@ func NewApp(ctx context.Context, cfg config.Config) (*App, error) {
 
 	gin.SetMode(cfg.GinMode)
 	router := gin.New()
-	router.Use(gin.Recovery())
+	router.Use(gin.Logger(), gin.Recovery())
 
 	healthRepository := repository.NewHealthRepository(
 		cfg.Service,
