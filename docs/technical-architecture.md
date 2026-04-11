@@ -240,12 +240,14 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - `GET /api/v1/users/me`
 - `GET /api/v1/users/me/codeforces/problem-facts`
 - `GET /api/v1/users/me/codeforces/contest-ac-summaries`
+- `GET /api/v1/users/me/luogu/problem-facts`
 - `GET /api/v1/accounts`
 - `POST /api/v1/accounts`
 - `DELETE /api/v1/accounts/:id`
 - `POST /api/v1/accounts/:id/sync`
 - `GET /api/v1/accounts/:id/codeforces/profile`
 - `GET /api/v1/accounts/:id/codeforces/contest-histories`
+- `GET /api/v1/accounts/:id/luogu/profile`
 
 ### 9.3 管理接口
 - `GET /api/v1/admin/platform-accounts`
@@ -274,7 +276,7 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 
 ### 9.7 T07 当前落地说明
 - 当前 `Codeforces` 主链路已接入官方 API `user.info / user.status / user.rating`。
-- 当前手动同步入口为 `POST /api/v1/accounts/:id/sync`，仅允许当前用户为自己名下、已审核通过的 `Codeforces` 账号创建同步任务，并立即返回 `202 Accepted`。
+- 当前手动同步入口为 `POST /api/v1/accounts/:id/sync`，仅允许当前用户为自己名下、已审核通过的平台账号创建同步任务，并立即返回 `202 Accepted`。
 - 同步结果会直接写入：
   - `platform_profile_snapshots`
   - `accepted_event_raw`
@@ -283,6 +285,18 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
   - `platform_contest_histories`
 - 当前异步执行方式是：接口写入 `sync_jobs`，再由 `api` 进程内的后台 worker 轮询并处理 `Codeforces` 同步任务。
 - 当前写库已改为分批批量 upsert，`contest_ac_summaries` 的题目集合合并也在应用层完成，避免逐条数据库 round-trip 和数据库侧高成本数组聚合。
+
+### 9.8 T08 当前落地说明
+- 当前 `Luogu` 稳定链路使用公开接口和公开页面：
+  - `GET /api/user/search?keyword=<handle>` 解析用户名到 `uid`
+  - `GET /api/user/info/{uid}` 拉取公开资料和当前 `eloValue`
+  - `GET /user/{uid}/practice` 拉取公开已通过题单
+- 当前 `Luogu` 同步结果会直接写入：
+  - `platform_profile_snapshots`
+  - `accepted_event_raw`
+  - `problem_facts`
+- 当前公开链路无法拿到逐题真实 `AC` 时间，因此 `problem_facts.first_ac_at` 在 `Luogu` 平台上暂时表示“首次被 ACMRank 观测到的时间”，后续接入更强链路后再回填真实值。
+- 当前异步执行方式与 `Codeforces` 一致：接口写入 `sync_jobs`，再由 `api` 进程内的后台 worker 轮询并处理 `Luogu` 同步任务。
 
 ## 10. 前端结构
 

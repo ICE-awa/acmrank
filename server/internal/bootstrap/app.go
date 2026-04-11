@@ -112,6 +112,7 @@ func registerAPIRoutes(
 	userRepository := repository.NewUserRepository(dependencySet.Database())
 	platformAccountRepository := repository.NewPlatformAccountRepository(dependencySet.Database())
 	codeforcesSyncRepository := repository.NewCodeforcesSyncRepository(dependencySet.Database())
+	luoguSyncRepository := repository.NewLuoguSyncRepository(dependencySet.Database())
 	syncJobRepository := repository.NewSyncJobRepository(dependencySet.Database())
 	authStateRepository := repository.NewAuthStateRepository(dependencySet.Redis())
 	authService := service.NewAuthService(
@@ -127,14 +128,29 @@ func registerAPIRoutes(
 	platformAccountService := service.NewPlatformAccountService(platformAccountRepository)
 	platformAccountHandler := handlerv1.NewPlatformAccountHandler(platformAccountService)
 	codeforcesClient := integration.NewCodeforcesClient(cfg.CodeforcesAPIBaseURL, cfg.CodeforcesAPITimeout)
+	luoguClient := integration.NewLuoguClient(cfg.LuoguBaseURL, cfg.LuoguTimeout)
 	codeforcesService := service.NewCodeforcesSyncService(
 		platformAccountRepository,
 		codeforcesSyncRepository,
 		syncJobRepository,
 		codeforcesClient,
 	)
+	luoguService := service.NewLuoguSyncService(
+		platformAccountRepository,
+		luoguSyncRepository,
+		syncJobRepository,
+		luoguClient,
+	)
+	platformSyncService := service.NewPlatformSyncService(
+		platformAccountRepository,
+		codeforcesService,
+		luoguService,
+	)
+	platformSyncHandler := handlerv1.NewPlatformSyncHandler(platformSyncService)
 	codeforcesHandler := handlerv1.NewCodeforcesHandler(codeforcesService)
+	luoguHandler := handlerv1.NewLuoguHandler(luoguService)
 	codeforcesSyncRunner := service.NewCodeforcesSyncJobRunner(codeforcesService, 0)
+	luoguSyncRunner := service.NewLuoguSyncJobRunner(luoguService, 0)
 
 	authGroup := v1.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -147,15 +163,17 @@ func registerAPIRoutes(
 	usersGroup.GET("/me", authMiddleware.RequireAuthenticated(), userHandler.GetMe)
 	usersGroup.GET("/me/codeforces/problem-facts", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListProblemFacts)
 	usersGroup.GET("/me/codeforces/contest-ac-summaries", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListContestSummaries)
+	usersGroup.GET("/me/luogu/problem-facts", authMiddleware.RequireAuthenticated(), luoguHandler.ListProblemFacts)
 
 	accountsGroup := v1.Group("/accounts")
 	accountsGroup.Use(authMiddleware.RequireAuthenticated())
 	accountsGroup.GET("", platformAccountHandler.ListMine)
 	accountsGroup.POST("", platformAccountHandler.Create)
 	accountsGroup.DELETE("/:id", platformAccountHandler.Delete)
-	accountsGroup.POST("/:id/sync", codeforcesHandler.Sync)
+	accountsGroup.POST("/:id/sync", platformSyncHandler.Sync)
 	accountsGroup.GET("/:id/codeforces/profile", codeforcesHandler.GetLatestProfile)
 	accountsGroup.GET("/:id/codeforces/contest-histories", codeforcesHandler.ListContestHistories)
+	accountsGroup.GET("/:id/luogu/profile", luoguHandler.GetLatestProfile)
 
 	adminGroup := v1.Group("/admin")
 	adminGroup.Use(authMiddleware.RequireAuthenticated(), authMiddleware.RequireAdmin())
@@ -168,6 +186,9 @@ func registerAPIRoutes(
 	return []func(context.Context){
 		func(ctx context.Context) {
 			codeforcesSyncRunner.Start(ctx)
+		},
+		func(ctx context.Context) {
+			luoguSyncRunner.Start(ctx)
 		},
 	}, nil
 }

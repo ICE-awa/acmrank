@@ -10,81 +10,7 @@ import (
 
 	"github.com/ICE-awa/acmrank/server/internal/model"
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgconn"
 )
-
-var ErrPlatformSyncDataNotFound = errors.New("platform sync data not found")
-
-type codeforcesSyncRepositoryDB interface {
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	BeginTx(ctx context.Context, txOptions pgx.TxOptions) (pgx.Tx, error)
-}
-
-type codeforcesSyncTx interface {
-	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
-	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
-	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
-	Commit(ctx context.Context) error
-	Rollback(ctx context.Context) error
-}
-
-type pgxCodeforcesSyncTx struct {
-	tx pgx.Tx
-}
-
-func (t pgxCodeforcesSyncTx) Exec(
-	ctx context.Context,
-	sql string,
-	args ...any,
-) (pgconn.CommandTag, error) {
-	return t.tx.Exec(ctx, sql, args...)
-}
-
-func (t pgxCodeforcesSyncTx) Query(
-	ctx context.Context,
-	sql string,
-	args ...any,
-) (pgx.Rows, error) {
-	return t.tx.Query(ctx, sql, args...)
-}
-
-func (t pgxCodeforcesSyncTx) QueryRow(ctx context.Context, sql string, args ...any) pgx.Row {
-	return t.tx.QueryRow(ctx, sql, args...)
-}
-
-func (t pgxCodeforcesSyncTx) Commit(ctx context.Context) error {
-	return t.tx.Commit(ctx)
-}
-
-func (t pgxCodeforcesSyncTx) Rollback(ctx context.Context) error {
-	return t.tx.Rollback(ctx)
-}
-
-type CodeforcesProfileSnapshotInput struct {
-	DisplayName string
-	Rating      *int
-	MaxRating   *int
-	ProfileURL  string
-	Source      string
-	Payload     []byte
-	FetchedAt   time.Time
-}
-
-type CodeforcesAcceptedEventInput struct {
-	Handle       string
-	ProblemKey   string
-	ContestID    string
-	ProblemIndex string
-	ProblemName  string
-	ProblemURL   string
-	AcceptedAt   time.Time
-	SubmissionID string
-	Source       string
-	SourceURL    string
-	Payload      []byte
-	FetchedAt    time.Time
-}
 
 type CodeforcesContestHistoryInput struct {
 	ContestID      string
@@ -103,34 +29,20 @@ type CodeforcesContestHistoryInput struct {
 type SaveCodeforcesSyncParams struct {
 	Account          model.PlatformAccount
 	SyncedAt         time.Time
-	Profile          CodeforcesProfileSnapshotInput
-	AcceptedEvents   []CodeforcesAcceptedEventInput
+	Profile          PlatformProfileSnapshotInput
+	AcceptedEvents   []PlatformAcceptedEventInput
 	ContestHistories []CodeforcesContestHistoryInput
 }
 
-type ListCodeforcesSyncFilter struct {
-	Limit  int
-	Offset int
-}
-
 type CodeforcesSyncRepository struct {
-	db      codeforcesSyncRepositoryDB
-	beginTx func(context.Context) (codeforcesSyncTx, error)
+	*PlatformSyncRepository
 }
 
 const codeforcesSyncBatchSize = 500
 
-func NewCodeforcesSyncRepository(db codeforcesSyncRepositoryDB) *CodeforcesSyncRepository {
+func NewCodeforcesSyncRepository(db platformSyncRepositoryDB) *CodeforcesSyncRepository {
 	return &CodeforcesSyncRepository{
-		db: db,
-		beginTx: func(ctx context.Context) (codeforcesSyncTx, error) {
-			tx, err := db.BeginTx(ctx, pgx.TxOptions{})
-			if err != nil {
-				return nil, err
-			}
-
-			return pgxCodeforcesSyncTx{tx: tx}, nil
-		},
+		PlatformSyncRepository: NewPlatformSyncRepository(db),
 	}
 }
 
@@ -162,7 +74,7 @@ func (r *CodeforcesSyncRepository) SaveSync(
 		contestNameByID[contest.ContestID] = contest.ContestName
 	}
 
-	sortedAccepted := append([]CodeforcesAcceptedEventInput(nil), params.AcceptedEvents...)
+	sortedAccepted := append([]PlatformAcceptedEventInput(nil), params.AcceptedEvents...)
 	sort.Slice(sortedAccepted, func(i, j int) bool {
 		if sortedAccepted[i].AcceptedAt.Equal(sortedAccepted[j].AcceptedAt) {
 			return sortedAccepted[i].SubmissionID < sortedAccepted[j].SubmissionID
@@ -264,7 +176,7 @@ WHERE id = $1`,
 	return nil
 }
 
-func (r *CodeforcesSyncRepository) GetLatestProfileSnapshot(
+func (r *PlatformSyncRepository) GetLatestProfileSnapshot(
 	ctx context.Context,
 	accountID int64,
 ) (model.PlatformProfileSnapshot, error) {
@@ -294,7 +206,7 @@ LIMIT 1`,
 func (r *CodeforcesSyncRepository) ListContestHistoriesByAccountID(
 	ctx context.Context,
 	accountID int64,
-	filter ListCodeforcesSyncFilter,
+	filter ListPlatformSyncFilter,
 ) ([]model.PlatformContestHistory, error) {
 	rows, err := r.db.Query(
 		ctx,
@@ -317,11 +229,11 @@ LIMIT $2 OFFSET $3`,
 	return collectPlatformContestHistories(rows)
 }
 
-func (r *CodeforcesSyncRepository) ListProblemFactsByUserIDAndPlatform(
+func (r *PlatformSyncRepository) ListProblemFactsByUserIDAndPlatform(
 	ctx context.Context,
 	siteUserID int64,
 	platform model.Platform,
-	filter ListCodeforcesSyncFilter,
+	filter ListPlatformSyncFilter,
 ) ([]model.ProblemFact, error) {
 	rows, err := r.db.Query(
 		ctx,
@@ -347,11 +259,11 @@ LIMIT $3 OFFSET $4`,
 	return collectProblemFacts(rows)
 }
 
-func (r *CodeforcesSyncRepository) ListContestSummariesByUserIDAndPlatform(
+func (r *PlatformSyncRepository) ListContestSummariesByUserIDAndPlatform(
 	ctx context.Context,
 	siteUserID int64,
 	platform model.Platform,
-	filter ListCodeforcesSyncFilter,
+	filter ListPlatformSyncFilter,
 ) ([]model.ContestACSummary, error) {
 	rows, err := r.db.Query(
 		ctx,
@@ -405,7 +317,7 @@ type insertedAcceptedEventRaw struct {
 
 func aggregateProblemFact(
 	aggregates map[string]problemFactAggregate,
-	acceptedEvent CodeforcesAcceptedEventInput,
+	acceptedEvent PlatformAcceptedEventInput,
 	rawID int64,
 ) {
 	current, exists := aggregates[acceptedEvent.ProblemKey]
@@ -442,7 +354,7 @@ func aggregateProblemFact(
 
 func aggregateContestSummary(
 	aggregates map[string]contestSummaryAggregate,
-	acceptedEvent CodeforcesAcceptedEventInput,
+	acceptedEvent PlatformAcceptedEventInput,
 	contestName string,
 ) {
 	current, exists := aggregates[acceptedEvent.ContestID]
@@ -497,7 +409,7 @@ func mergeProblemFact(
 		incoming.FirstACAt = existing.FirstACAt
 		incoming.FirstACSource = existing.FirstACSource
 		incoming.FirstACSubmissionID = existing.FirstACSubmissionRef
-		incoming.FirstACEventRawID = existing.FirstACEventRawID
+		incoming.FirstACEventRawID = copyOptionalInt64(existing.FirstACEventRawID)
 	}
 
 	if existing.LatestACAt.After(incoming.LatestACAt) {
@@ -505,6 +417,15 @@ func mergeProblemFact(
 	}
 
 	return incoming
+}
+
+func copyOptionalInt64(value *int64) *int64 {
+	if value == nil {
+		return nil
+	}
+
+	copied := *value
+	return &copied
 }
 
 func mergeContestSummary(
@@ -537,11 +458,11 @@ func mergeContestSummary(
 	return incoming
 }
 
-func (r *CodeforcesSyncRepository) insertProfileSnapshot(
+func (r *PlatformSyncRepository) insertProfileSnapshot(
 	ctx context.Context,
-	tx codeforcesSyncTx,
+	tx platformSyncTx,
 	accountID int64,
-	profile CodeforcesProfileSnapshotInput,
+	profile PlatformProfileSnapshotInput,
 ) error {
 	_, err := tx.Exec(
 		ctx,
@@ -563,7 +484,7 @@ VALUES ($1, $2, NULLIF($3, ''), $4, $5, NULLIF($6, ''), $7, $8)`,
 
 func (r *CodeforcesSyncRepository) upsertContestHistoriesBatch(
 	ctx context.Context,
-	tx codeforcesSyncTx,
+	tx platformSyncTx,
 	account model.PlatformAccount,
 	contests []CodeforcesContestHistoryInput,
 ) error {
@@ -631,11 +552,11 @@ SET contest_name = EXCLUDED.contest_name,
 	return nil
 }
 
-func (r *CodeforcesSyncRepository) insertAcceptedEventRawBatch(
+func (r *PlatformSyncRepository) insertAcceptedEventRawBatch(
 	ctx context.Context,
-	tx codeforcesSyncTx,
+	tx platformSyncTx,
 	account model.PlatformAccount,
-	acceptedEvents []CodeforcesAcceptedEventInput,
+	acceptedEvents []PlatformAcceptedEventInput,
 ) ([]insertedAcceptedEventRaw, error) {
 	inserted := make([]insertedAcceptedEventRaw, 0, len(acceptedEvents))
 	for start := 0; start < len(acceptedEvents); start += codeforcesSyncBatchSize {
@@ -705,9 +626,9 @@ RETURNING id, problem_key, accepted_at, COALESCE(submission_id_or_ref, '')`)
 	return inserted, nil
 }
 
-func (r *CodeforcesSyncRepository) loadExistingProblemFactsByKeys(
+func (r *PlatformSyncRepository) loadExistingProblemFactsByKeys(
 	ctx context.Context,
-	tx codeforcesSyncTx,
+	tx platformSyncTx,
 	account model.PlatformAccount,
 	problemKeys []string,
 ) (map[string]model.ProblemFact, error) {
@@ -747,9 +668,9 @@ WHERE site_user_id = $1
 	return result, nil
 }
 
-func (r *CodeforcesSyncRepository) upsertProblemFactsBatch(
+func (r *PlatformSyncRepository) upsertProblemFactsBatch(
 	ctx context.Context,
-	tx codeforcesSyncTx,
+	tx platformSyncTx,
 	account model.PlatformAccount,
 	problemFacts []problemFactAggregate,
 ) error {
@@ -814,9 +735,9 @@ SET contest_id = EXCLUDED.contest_id,
 	return nil
 }
 
-func (r *CodeforcesSyncRepository) loadExistingContestSummariesByIDs(
+func (r *PlatformSyncRepository) loadExistingContestSummariesByIDs(
 	ctx context.Context,
-	tx codeforcesSyncTx,
+	tx platformSyncTx,
 	account model.PlatformAccount,
 	contestIDs []string,
 ) (map[string]model.ContestACSummary, error) {
@@ -854,9 +775,9 @@ WHERE site_user_id = $1
 	return result, nil
 }
 
-func (r *CodeforcesSyncRepository) upsertContestSummariesBatch(
+func (r *PlatformSyncRepository) upsertContestSummariesBatch(
 	ctx context.Context,
-	tx codeforcesSyncTx,
+	tx platformSyncTx,
 	account model.PlatformAccount,
 	contestSummaries []contestSummaryAggregate,
 ) error {

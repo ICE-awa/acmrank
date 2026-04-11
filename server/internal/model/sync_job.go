@@ -4,7 +4,10 @@ import "time"
 
 type SyncJobType string
 
-const SyncJobTypeCodeforces SyncJobType = "codeforces_sync"
+const (
+	SyncJobTypeCodeforces SyncJobType = "codeforces_sync"
+	SyncJobTypeLuogu      SyncJobType = "luogu_sync"
+)
 
 type SyncJobStatus string
 

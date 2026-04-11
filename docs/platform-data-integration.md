@@ -163,6 +163,16 @@
 - 不参与 `SCNU Rating`
 - 允许通过稳定的官方页面接口或解析链路实现
 
+### 7.3 当前稳定公开链路
+- 用户名到 `uid`：`GET /api/user/search?keyword=<handle>`
+- 账号资料与当前 `rating`：`GET /api/user/info/{uid}`
+- 已通过题列表：`GET /user/{uid}/practice` 页面内嵌 JSON `data.passed`
+
+### 7.4 当前公开链路限制
+- 当前公开链路可以稳定得到“已过哪些题”，但拿不到逐题真实 `AC` 时间。
+- 在 T08 阶段，`Luogu` 的 `problem_facts.first_ac_at` 与 `latest_ac_at` 暂时落为“首次被 ACMRank 观测到的时间”，后续如接入更强链路再回填真实时间。
+- 该限制不会影响当前 `SCNU Rating`，因为 `Luogu` 不参与 `SCNU Rating` 计算；但在后续公开页展示阶段，需要把这个限制继续保留在实现约束中，避免误当成真实首 AC 时间。
+
 ## 8. ICPC
 
 ### 8.1 接入目标

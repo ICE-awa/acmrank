@@ -249,7 +249,9 @@ func fetchCodeforcesAPI[T any](
 	if err != nil {
 		return response, fmt.Errorf("%w: request %s: %w", ErrCodeforcesAPI, endpoint, err)
 	}
-	defer httpResponse.Body.Close()
+	defer func() {
+		_ = httpResponse.Body.Close()
+	}()
 
 	if httpResponse.StatusCode != http.StatusOK {
 		return response, fmt.Errorf("%w: request %s returned %s", ErrCodeforcesAPI, endpoint, httpResponse.Status)

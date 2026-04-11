@@ -2,7 +2,11 @@ package model
 
 import "time"
 
-const SyncSourceCodeforcesAPI = "codeforces_api"
+const (
+	SyncSourceCodeforcesAPI = "codeforces_api"
+	SyncSourceLuoguUserInfo = "luogu_user_info"
+	SyncSourceLuoguPractice = "luogu_practice_page"
+)
 
 type PlatformProfileSnapshot struct {
 	ID                int64
