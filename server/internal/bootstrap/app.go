@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"time"
 
 	"github.com/ICE-awa/acmrank/server/internal/appmeta"
 	"github.com/ICE-awa/acmrank/server/internal/config"
@@ -60,17 +59,24 @@ func NewApp(ctx context.Context, cfg config.Config) (*App, error) {
 	v1 := router.Group("/api/v1")
 	v1.GET("/health", healthHandler.Get)
 
-	server := &http.Server{
-		Addr:              cfg.HTTPAddr,
-		Handler:           router,
-		ReadHeaderTimeout: 5 * time.Second,
-	}
+	server := newHTTPServer(cfg, router)
 
 	return &App{
 		config:       cfg,
 		dependencies: dependencySet,
 		server:       server,
 	}, nil
+}
+
+func newHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              cfg.HTTPAddr,
+		Handler:           handler,
+		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
+	}
 }
 
 func (a *App) Run(ctx context.Context) error {
