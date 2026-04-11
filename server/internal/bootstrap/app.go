@@ -104,6 +104,7 @@ func registerAPIRoutes(
 	}
 
 	userRepository := repository.NewUserRepository(dependencySet.Database())
+	platformAccountRepository := repository.NewPlatformAccountRepository(dependencySet.Database())
 	authStateRepository := repository.NewAuthStateRepository(dependencySet.Redis())
 	authService := service.NewAuthService(
 		userRepository,
@@ -113,8 +114,10 @@ func registerAPIRoutes(
 		cfg.EmailVerifyTTL,
 	)
 	authHandler := handlerv1.NewAuthHandler(authService, cfg.CookieSecure)
-	authMiddleware := handlerv1.NewAuthMiddleware(authService)
+	authMiddleware := handlerv1.NewAuthMiddleware(authService, cfg.AdminUsernames...)
 	userHandler := handlerv1.NewUserHandler()
+	platformAccountService := service.NewPlatformAccountService(platformAccountRepository)
+	platformAccountHandler := handlerv1.NewPlatformAccountHandler(platformAccountService)
 
 	authGroup := v1.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -125,6 +128,20 @@ func registerAPIRoutes(
 
 	usersGroup := v1.Group("/users")
 	usersGroup.GET("/me", authMiddleware.RequireAuthenticated(), userHandler.GetMe)
+
+	accountsGroup := v1.Group("/accounts")
+	accountsGroup.Use(authMiddleware.RequireAuthenticated())
+	accountsGroup.GET("", platformAccountHandler.ListMine)
+	accountsGroup.POST("", platformAccountHandler.Create)
+	accountsGroup.DELETE("/:id", platformAccountHandler.Delete)
+
+	adminGroup := v1.Group("/admin")
+	adminGroup.Use(authMiddleware.RequireAuthenticated(), authMiddleware.RequireAdmin())
+	adminPlatformAccounts := adminGroup.Group("/platform-accounts")
+	adminPlatformAccounts.GET("", platformAccountHandler.ListAll)
+	adminPlatformAccounts.POST("/:id/verify", platformAccountHandler.Verify)
+	adminPlatformAccounts.POST("/:id/disable", platformAccountHandler.Disable)
+	adminPlatformAccounts.POST("/:id/reject", platformAccountHandler.Reject)
 
 	return nil
 }

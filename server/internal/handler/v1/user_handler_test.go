@@ -87,3 +87,57 @@ func TestAuthMiddlewareRejectsUnauthorizedRequest(t *testing.T) {
 		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusUnauthorized)
 	}
 }
+
+func TestAuthMiddlewareRequireAdminRejectsNonAdminUser(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(authenticatedUserContextKey, model.User{
+			ID:       1,
+			Username: "tourist",
+			Status:   model.UserStatusActive,
+		})
+		c.Next()
+	})
+
+	middleware := NewAuthMiddleware(stubAuthHTTPService{}, "admin")
+	router.GET("/api/v1/admin/ping", middleware.RequireAdmin(), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/ping", nil)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusForbidden {
+		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusForbidden)
+	}
+}
+
+func TestAuthMiddlewareRequireAdminAllowsConfiguredAdmin(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(authenticatedUserContextKey, model.User{
+			ID:       2,
+			Username: "Admin",
+			Status:   model.UserStatusActive,
+		})
+		c.Next()
+	})
+
+	middleware := NewAuthMiddleware(stubAuthHTTPService{}, "admin")
+	router.GET("/api/v1/admin/ping", middleware.RequireAdmin(), func(c *gin.Context) {
+		c.Status(http.StatusNoContent)
+	})
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/ping", nil)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusNoContent {
+		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusNoContent)
+	}
+}
