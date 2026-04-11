@@ -99,15 +99,15 @@ WHERE pa.site_user_id = $1`)
 	args := []any{siteUserID}
 	if filter.Platform != "" {
 		args = append(args, filter.Platform)
-		builder.WriteString(fmt.Sprintf("\n  AND pa.platform = $%d", len(args)))
+		fmt.Fprintf(&builder, "\n  AND pa.platform = $%d", len(args))
 	}
 	if filter.Status != "" {
 		args = append(args, filter.Status)
-		builder.WriteString(fmt.Sprintf("\n  AND pa.status = $%d", len(args)))
+		fmt.Fprintf(&builder, "\n  AND pa.status = $%d", len(args))
 	}
 
 	args = append(args, filter.Limit, filter.Offset)
-	builder.WriteString(fmt.Sprintf("\nORDER BY pa.created_at DESC, pa.id DESC\nLIMIT $%d OFFSET $%d", len(args)-1, len(args)))
+	fmt.Fprintf(&builder, "\nORDER BY pa.created_at DESC, pa.id DESC\nLIMIT $%d OFFSET $%d", len(args)-1, len(args))
 
 	rows, err := r.db.Query(ctx, builder.String(), args...)
 	if err != nil {
