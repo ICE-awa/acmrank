@@ -40,6 +40,22 @@ func TestLoadDefaultsForAPI(t *testing.T) {
 	if cfg.IdleTimeout != 60*time.Second {
 		t.Fatalf("Load() IdleTimeout = %v, want %v", cfg.IdleTimeout, 60*time.Second)
 	}
+
+	if cfg.AccessTokenTTL != 15*time.Minute {
+		t.Fatalf("Load() AccessTokenTTL = %v, want %v", cfg.AccessTokenTTL, 15*time.Minute)
+	}
+
+	if cfg.RefreshTokenTTL != 30*24*time.Hour {
+		t.Fatalf("Load() RefreshTokenTTL = %v, want %v", cfg.RefreshTokenTTL, 30*24*time.Hour)
+	}
+
+	if cfg.EmailVerifyTTL != 24*time.Hour {
+		t.Fatalf("Load() EmailVerifyTTL = %v, want %v", cfg.EmailVerifyTTL, 24*time.Hour)
+	}
+
+	if cfg.CookieSecure {
+		t.Fatal("Load() CookieSecure should default to false")
+	}
 }
 
 func TestLoadHonorsOverrides(t *testing.T) {
@@ -50,6 +66,10 @@ func TestLoadHonorsOverrides(t *testing.T) {
 	t.Setenv("ACMRANK_HTTP_READ_TIMEOUT", "21s")
 	t.Setenv("ACMRANK_HTTP_WRITE_TIMEOUT", "22s")
 	t.Setenv("ACMRANK_HTTP_IDLE_TIMEOUT", "75s")
+	t.Setenv("ACMRANK_AUTH_ACCESS_TOKEN_TTL", "17m")
+	t.Setenv("ACMRANK_AUTH_REFRESH_TOKEN_TTL", "240h")
+	t.Setenv("ACMRANK_AUTH_EMAIL_VERIFY_TTL", "48h")
+	t.Setenv("ACMRANK_AUTH_COOKIE_SECURE", "true")
 
 	cfg, err := Load(appmeta.ServiceScheduler)
 	if err != nil {
@@ -83,6 +103,22 @@ func TestLoadHonorsOverrides(t *testing.T) {
 	if cfg.IdleTimeout != 75*time.Second {
 		t.Fatalf("Load() IdleTimeout = %v, want %v", cfg.IdleTimeout, 75*time.Second)
 	}
+
+	if cfg.AccessTokenTTL != 17*time.Minute {
+		t.Fatalf("Load() AccessTokenTTL = %v, want %v", cfg.AccessTokenTTL, 17*time.Minute)
+	}
+
+	if cfg.RefreshTokenTTL != 240*time.Hour {
+		t.Fatalf("Load() RefreshTokenTTL = %v, want %v", cfg.RefreshTokenTTL, 240*time.Hour)
+	}
+
+	if cfg.EmailVerifyTTL != 48*time.Hour {
+		t.Fatalf("Load() EmailVerifyTTL = %v, want %v", cfg.EmailVerifyTTL, 48*time.Hour)
+	}
+
+	if !cfg.CookieSecure {
+		t.Fatal("Load() CookieSecure should honor override")
+	}
 }
 
 func TestLoadRejectsUnsupportedService(t *testing.T) {
@@ -96,5 +132,13 @@ func TestLoadRejectsInvalidDurationOverride(t *testing.T) {
 
 	if _, err := Load(appmeta.ServiceAPI); err == nil {
 		t.Fatal("Load() expected invalid duration error")
+	}
+}
+
+func TestLoadRejectsInvalidBoolOverride(t *testing.T) {
+	t.Setenv("ACMRANK_AUTH_COOKIE_SECURE", "sometimes")
+
+	if _, err := Load(appmeta.ServiceAPI); err == nil {
+		t.Fatal("Load() expected invalid bool error")
 	}
 }
