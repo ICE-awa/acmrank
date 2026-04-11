@@ -180,8 +180,11 @@ func TestPlatformAccountRepositoryListByUserIDReturnsAccounts(t *testing.T) {
 	now := time.Unix(1_700_100_100, 0).UTC()
 	repository := NewPlatformAccountRepository(&stubPlatformAccountDB{
 		queryFn: func(_ context.Context, query string, args ...any) (pgx.Rows, error) {
-			if !strings.Contains(query, "WHERE pa.site_user_id = $1") {
+			if !strings.Contains(query, "WHERE pa.site_user_id = $1") || !strings.Contains(query, "LIMIT $2 OFFSET $3") {
 				t.Fatalf("unexpected query: %q", query)
+			}
+			if len(args) != 3 || args[1] != 25 || args[2] != 10 {
+				t.Fatalf("ListByUserID() args = %#v", args)
 			}
 
 			return &stubPlatformAccountRows{
@@ -209,13 +212,69 @@ func TestPlatformAccountRepositoryListByUserIDReturnsAccounts(t *testing.T) {
 		},
 	})
 
-	accounts, err := repository.ListByUserID(context.Background(), 3)
+	accounts, err := repository.ListByUserID(context.Background(), 3, ListPlatformAccountsFilter{
+		Limit:  25,
+		Offset: 10,
+	})
 	if err != nil {
 		t.Fatalf("ListByUserID() error = %v", err)
 	}
 
 	if len(accounts) != 1 || accounts[0].Owner.Username != "neal" {
 		t.Fatalf("ListByUserID() accounts = %+v", accounts)
+	}
+}
+
+func TestPlatformAccountRepositoryListAppliesFiltersAndPagination(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_700_100_150, 0).UTC()
+	repository := NewPlatformAccountRepository(&stubPlatformAccountDB{
+		queryFn: func(_ context.Context, query string, args ...any) (pgx.Rows, error) {
+			if !strings.Contains(query, "pa.platform = $1") || !strings.Contains(query, "pa.status = $2") || !strings.Contains(query, "LIMIT $3 OFFSET $4") {
+				t.Fatalf("unexpected query: %q", query)
+			}
+			if len(args) != 4 || args[2] != 15 || args[3] != 30 {
+				t.Fatalf("List() args = %#v", args)
+			}
+
+			return &stubPlatformAccountRows{
+				scanFns: []func(dest ...any) error{
+					func(dest ...any) error {
+						assignPlatformAccountRow(dest, model.PlatformAccount{
+							ID:            2,
+							SiteUserID:    1,
+							Platform:      model.PlatformAtCoder,
+							Handle:        "tourist",
+							DisplayHandle: "tourist",
+							Status:        model.PlatformAccountStatusPendingReview,
+							CreatedAt:     now,
+							UpdatedAt:     now,
+							Owner: model.PlatformAccountOwner{
+								ID:       1,
+								Username: "tourist",
+								RealName: "Tourist",
+							},
+						}, nil, nil)
+						return nil
+					},
+				},
+			}, nil
+		},
+	})
+
+	accounts, err := repository.List(context.Background(), ListPlatformAccountsFilter{
+		Platform: model.PlatformAtCoder,
+		Status:   model.PlatformAccountStatusPendingReview,
+		Limit:    15,
+		Offset:   30,
+	})
+	if err != nil {
+		t.Fatalf("List() error = %v", err)
+	}
+
+	if len(accounts) != 1 || accounts[0].Platform != model.PlatformAtCoder {
+		t.Fatalf("List() accounts = %+v", accounts)
 	}
 }
 

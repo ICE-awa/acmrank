@@ -67,6 +67,7 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
   - `POST /api/v1/admin/platform-accounts/:id/verify`
   - `POST /api/v1/admin/platform-accounts/:id/disable`
   - `POST /api/v1/admin/platform-accounts/:id/reject`
+- 账号列表接口支持 `limit` 与 `offset` 查询参数；当前默认 `limit=50`，并且会把超大请求裁剪到 `100`。
 - 认证模型固定为 `JWT AT + RT + HttpOnly Cookie`。
 - 当前仓库尚未接入真实邮件投递能力，因此“邮箱验证基础流程”阶段会直接在注册响应里返回一次性的邮箱验证 token，便于本地联调与自动化测试。
 - 本地默认认证配置已写入 `.env.example`，生产环境必须覆盖默认密钥。

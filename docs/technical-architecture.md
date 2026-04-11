@@ -262,6 +262,7 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - 平台账号绑定接口已支持新增、删除、查询以及审核状态流转。
 - 平台账号唯一归属目前通过数据库中的 `UNIQUE (platform, handle)` 约束保证。
 - 管理端审核接口当前通过配置项 `ACMRANK_ADMIN_USERNAMES` 控制可访问的站内用户名列表，后续如引入专门角色模型再替换。
+- 账号列表接口当前支持 `limit / offset` 分页参数，默认页大小为 `50`，最大页大小为 `100`。
 
 ## 10. 前端结构
 

@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"io"
 	"log"
 	"net/http"
 	"strconv"
@@ -15,7 +16,7 @@ import (
 )
 
 type PlatformAccountService interface {
-	ListMine(ctx context.Context, siteUserID int64) ([]model.PlatformAccount, error)
+	ListMine(ctx context.Context, siteUserID int64, input service.ListPlatformAccountsInput) ([]model.PlatformAccount, error)
 	Create(
 		ctx context.Context,
 		siteUserID int64,
@@ -45,7 +46,13 @@ func (h *PlatformAccountHandler) ListMine(c *gin.Context) {
 		return
 	}
 
-	accounts, err := h.service.ListMine(c.Request.Context(), user.ID)
+	listInput, err := listPlatformAccountsInputFromQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	accounts, err := h.service.ListMine(c.Request.Context(), user.ID, listInput)
 	if err != nil {
 		writePlatformAccountError(c, err)
 		return
@@ -105,10 +112,13 @@ func (h *PlatformAccountHandler) Delete(c *gin.Context) {
 }
 
 func (h *PlatformAccountHandler) ListAll(c *gin.Context) {
-	accounts, err := h.service.ListAll(c.Request.Context(), service.ListPlatformAccountsInput{
-		Platform: c.Query("platform"),
-		Status:   c.Query("status"),
-	})
+	listInput, err := listPlatformAccountsInputFromQuery(c)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	accounts, err := h.service.ListAll(c.Request.Context(), listInput)
 	if err != nil {
 		writePlatformAccountError(c, err)
 		return
@@ -145,11 +155,9 @@ func (h *PlatformAccountHandler) review(c *gin.Context, status model.PlatformAcc
 	}
 
 	var request dtov1.ReviewPlatformAccountRequest
-	if c.Request.ContentLength != 0 {
-		if err := c.ShouldBindJSON(&request); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+	if err := bindOptionalJSON(c, &request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
 	}
 
 	account, err := h.service.Review(c.Request.Context(), accountID, service.ReviewPlatformAccountInput{
@@ -242,4 +250,53 @@ func writePlatformAccountError(c *gin.Context, err error) {
 
 func parseInt64Param(c *gin.Context, name string) (int64, error) {
 	return strconv.ParseInt(c.Param(name), 10, 64)
+}
+
+func listPlatformAccountsInputFromQuery(c *gin.Context) (service.ListPlatformAccountsInput, error) {
+	limit, err := parseOptionalNonNegativeIntQuery(c, "limit")
+	if err != nil {
+		return service.ListPlatformAccountsInput{}, err
+	}
+
+	offset, err := parseOptionalNonNegativeIntQuery(c, "offset")
+	if err != nil {
+		return service.ListPlatformAccountsInput{}, err
+	}
+
+	return service.ListPlatformAccountsInput{
+		Platform: c.Query("platform"),
+		Status:   c.Query("status"),
+		Limit:    limit,
+		Offset:   offset,
+	}, nil
+}
+
+func parseOptionalNonNegativeIntQuery(c *gin.Context, name string) (int, error) {
+	raw := c.Query(name)
+	if raw == "" {
+		return 0, nil
+	}
+
+	value, err := strconv.Atoi(raw)
+	if err != nil {
+		return 0, errors.New(name + " must be a non-negative integer")
+	}
+	if value < 0 {
+		return 0, errors.New(name + " must be a non-negative integer")
+	}
+
+	return value, nil
+}
+
+func bindOptionalJSON(c *gin.Context, target any) error {
+	if c.Request.Body == nil {
+		return nil
+	}
+
+	err := c.ShouldBindJSON(target)
+	if errors.Is(err, io.EOF) {
+		return nil
+	}
+
+	return err
 }

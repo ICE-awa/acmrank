@@ -17,9 +17,14 @@ var (
 	ErrPlatformAccountForbidden   = errors.New("platform account access forbidden")
 )
 
+const (
+	defaultPlatformAccountListLimit = 50
+	maxPlatformAccountListLimit     = 100
+)
+
 type PlatformAccountStore interface {
 	Create(ctx context.Context, params repository.CreatePlatformAccountParams) (model.PlatformAccount, error)
-	ListByUserID(ctx context.Context, siteUserID int64) ([]model.PlatformAccount, error)
+	ListByUserID(ctx context.Context, siteUserID int64, filter repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error)
 	List(ctx context.Context, filter repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error)
 	GetByID(ctx context.Context, accountID int64) (model.PlatformAccount, error)
 	DeleteByUserID(ctx context.Context, accountID int64, siteUserID int64) error
@@ -34,6 +39,8 @@ type CreatePlatformAccountInput struct {
 type ListPlatformAccountsInput struct {
 	Platform string
 	Status   string
+	Limit    int
+	Offset   int
 }
 
 type ReviewPlatformAccountInput struct {
@@ -57,8 +64,14 @@ func NewPlatformAccountService(store PlatformAccountStore) *PlatformAccountServi
 func (s *PlatformAccountService) ListMine(
 	ctx context.Context,
 	siteUserID int64,
+	input ListPlatformAccountsInput,
 ) ([]model.PlatformAccount, error) {
-	return s.store.ListByUserID(ctx, siteUserID)
+	filter, err := normalizeListPlatformAccountsInput(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return s.store.ListByUserID(ctx, siteUserID, filter)
 }
 
 func (s *PlatformAccountService) Create(
@@ -213,6 +226,28 @@ func normalizeListPlatformAccountsInput(
 
 		filter.Status = status
 	}
+
+	switch {
+	case input.Limit < 0:
+		return repository.ListPlatformAccountsFilter{}, ValidationError{
+			Message: "limit must be greater than or equal to 0",
+		}
+	case input.Offset < 0:
+		return repository.ListPlatformAccountsFilter{}, ValidationError{
+			Message: "offset must be greater than or equal to 0",
+		}
+	}
+
+	limit := input.Limit
+	if limit == 0 {
+		limit = defaultPlatformAccountListLimit
+	}
+	if limit > maxPlatformAccountListLimit {
+		limit = maxPlatformAccountListLimit
+	}
+
+	filter.Limit = limit
+	filter.Offset = input.Offset
 
 	return filter, nil
 }

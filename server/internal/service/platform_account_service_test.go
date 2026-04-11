@@ -12,7 +12,7 @@ import (
 
 type stubPlatformAccountStore struct {
 	createFn       func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error)
-	listByUserFn   func(context.Context, int64) ([]model.PlatformAccount, error)
+	listByUserFn   func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error)
 	listFn         func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error)
 	getByIDFn      func(context.Context, int64) (model.PlatformAccount, error)
 	deleteByUserFn func(context.Context, int64, int64) error
@@ -29,8 +29,9 @@ func (s stubPlatformAccountStore) Create(
 func (s stubPlatformAccountStore) ListByUserID(
 	ctx context.Context,
 	siteUserID int64,
+	filter repository.ListPlatformAccountsFilter,
 ) ([]model.PlatformAccount, error) {
-	return s.listByUserFn(ctx, siteUserID)
+	return s.listByUserFn(ctx, siteUserID, filter)
 }
 
 func (s stubPlatformAccountStore) List(
@@ -80,7 +81,9 @@ func TestPlatformAccountServiceCreateNormalizesInput(t *testing.T) {
 				Status:        model.PlatformAccountStatusPendingReview,
 			}, nil
 		},
-		listByUserFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
 			return nil, nil
 		},
@@ -111,7 +114,9 @@ func TestPlatformAccountServiceCreateMapsUniquenessError(t *testing.T) {
 		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, repository.ErrPlatformAccountAlreadyBound
 		},
-		listByUserFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
 			return nil, nil
 		},
@@ -138,7 +143,9 @@ func TestPlatformAccountServiceDeleteRejectsForeignAccount(t *testing.T) {
 		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
-		listByUserFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
 			return nil, nil
 		},
@@ -157,6 +164,72 @@ func TestPlatformAccountServiceDeleteRejectsForeignAccount(t *testing.T) {
 	}
 }
 
+func TestPlatformAccountServiceListMineAppliesDefaultPagination(t *testing.T) {
+	t.Parallel()
+
+	service := NewPlatformAccountService(stubPlatformAccountStore{
+		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+		listByUserFn: func(_ context.Context, siteUserID int64, filter repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			if siteUserID != 7 {
+				t.Fatalf("ListByUserID() siteUserID = %d, want %d", siteUserID, 7)
+			}
+
+			if filter.Limit != defaultPlatformAccountListLimit || filter.Offset != 0 {
+				t.Fatalf("ListByUserID() filter = %+v", filter)
+			}
+
+			return []model.PlatformAccount{}, nil
+		},
+		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
+		getByIDFn:      func(context.Context, int64) (model.PlatformAccount, error) { return model.PlatformAccount{}, nil },
+		deleteByUserFn: func(context.Context, int64, int64) error { return nil },
+		reviewFn: func(context.Context, repository.ReviewPlatformAccountParams) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+	})
+
+	if _, err := service.ListMine(context.Background(), 7, ListPlatformAccountsInput{}); err != nil {
+		t.Fatalf("ListMine() error = %v", err)
+	}
+}
+
+func TestPlatformAccountServiceListAllClampsPagination(t *testing.T) {
+	t.Parallel()
+
+	service := NewPlatformAccountService(stubPlatformAccountStore{
+		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
+		listFn: func(_ context.Context, filter repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			if filter.Platform != model.PlatformAtCoder || filter.Limit != maxPlatformAccountListLimit || filter.Offset != 12 {
+				t.Fatalf("List() filter = %+v", filter)
+			}
+
+			return []model.PlatformAccount{}, nil
+		},
+		getByIDFn:      func(context.Context, int64) (model.PlatformAccount, error) { return model.PlatformAccount{}, nil },
+		deleteByUserFn: func(context.Context, int64, int64) error { return nil },
+		reviewFn: func(context.Context, repository.ReviewPlatformAccountParams) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+	})
+
+	if _, err := service.ListAll(context.Background(), ListPlatformAccountsInput{
+		Platform: "atcoder",
+		Limit:    500,
+		Offset:   12,
+	}); err != nil {
+		t.Fatalf("ListAll() error = %v", err)
+	}
+}
+
 func TestPlatformAccountServiceListAllValidatesFilter(t *testing.T) {
 	t.Parallel()
 
@@ -164,7 +237,9 @@ func TestPlatformAccountServiceListAllValidatesFilter(t *testing.T) {
 		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
-		listByUserFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
 			return nil, nil
 		},
@@ -181,6 +256,32 @@ func TestPlatformAccountServiceListAllValidatesFilter(t *testing.T) {
 	}
 }
 
+func TestPlatformAccountServiceListAllRejectsNegativeOffset(t *testing.T) {
+	t.Parallel()
+
+	service := NewPlatformAccountService(stubPlatformAccountStore{
+		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
+		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
+		getByIDFn:      func(context.Context, int64) (model.PlatformAccount, error) { return model.PlatformAccount{}, nil },
+		deleteByUserFn: func(context.Context, int64, int64) error { return nil },
+		reviewFn: func(context.Context, repository.ReviewPlatformAccountParams) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+	})
+
+	_, err := service.ListAll(context.Background(), ListPlatformAccountsInput{Offset: -1})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("ListAll() error = %v, want validation error", err)
+	}
+}
+
 func TestPlatformAccountServiceReviewIsIdempotentForSameStatus(t *testing.T) {
 	t.Parallel()
 
@@ -189,7 +290,9 @@ func TestPlatformAccountServiceReviewIsIdempotentForSameStatus(t *testing.T) {
 		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
-		listByUserFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
 			return nil, nil
 		},
@@ -231,7 +334,9 @@ func TestPlatformAccountServiceReviewPassesReviewerAndTimestamp(t *testing.T) {
 		createFn: func(context.Context, repository.CreatePlatformAccountParams) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
-		listByUserFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listByUserFn: func(context.Context, int64, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		listFn: func(context.Context, repository.ListPlatformAccountsFilter) ([]model.PlatformAccount, error) {
 			return nil, nil
 		},

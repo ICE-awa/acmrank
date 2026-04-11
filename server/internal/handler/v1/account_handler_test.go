@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -15,7 +16,7 @@ import (
 )
 
 type stubPlatformAccountHTTPService struct {
-	listMineFn func(context.Context, int64) ([]model.PlatformAccount, error)
+	listMineFn func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error)
 	createFn   func(context.Context, int64, service.CreatePlatformAccountInput) (model.PlatformAccount, error)
 	deleteFn   func(context.Context, int64, int64) error
 	listAllFn  func(context.Context, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error)
@@ -25,8 +26,9 @@ type stubPlatformAccountHTTPService struct {
 func (s stubPlatformAccountHTTPService) ListMine(
 	ctx context.Context,
 	siteUserID int64,
+	input service.ListPlatformAccountsInput,
 ) ([]model.PlatformAccount, error) {
-	return s.listMineFn(ctx, siteUserID)
+	return s.listMineFn(ctx, siteUserID, input)
 }
 
 func (s stubPlatformAccountHTTPService) Create(
@@ -67,9 +69,9 @@ func TestPlatformAccountHandlerListMineReturnsCurrentUsersAccounts(t *testing.T)
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
 	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
-		listMineFn: func(_ context.Context, siteUserID int64) ([]model.PlatformAccount, error) {
-			if siteUserID != 7 {
-				t.Fatalf("ListMine() siteUserID = %d, want %d", siteUserID, 7)
+		listMineFn: func(_ context.Context, siteUserID int64, input service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			if siteUserID != 7 || input.Limit != 25 || input.Offset != 10 {
+				t.Fatalf("ListMine() siteUserID = %d input = %+v", siteUserID, input)
 			}
 
 			return []model.PlatformAccount{
@@ -99,7 +101,7 @@ func TestPlatformAccountHandlerListMineReturnsCurrentUsersAccounts(t *testing.T)
 	router.GET("/api/v1/accounts", handler.ListMine)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts?limit=25&offset=10", nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -114,7 +116,9 @@ func TestPlatformAccountHandlerCreateReturnsCreatedAccount(t *testing.T) {
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
 	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
-		listMineFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listMineFn: func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		createFn: func(_ context.Context, siteUserID int64, input service.CreatePlatformAccountInput) (model.PlatformAccount, error) {
 			if siteUserID != 7 || input.Platform != "atcoder" || input.Handle != "tourist" {
 				t.Fatalf("Create() siteUserID = %d input = %+v", siteUserID, input)
@@ -157,7 +161,9 @@ func TestPlatformAccountHandlerDeleteReturnsNoContent(t *testing.T) {
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 9, Username: "neal"}))
 	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
-		listMineFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listMineFn: func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		createFn: func(context.Context, int64, service.CreatePlatformAccountInput) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
@@ -191,13 +197,15 @@ func TestPlatformAccountHandlerListAllIncludesOwnerForAdminView(t *testing.T) {
 	now := time.Unix(1_700_100_200, 0).UTC()
 	router := gin.New()
 	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
-		listMineFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listMineFn: func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		createFn: func(context.Context, int64, service.CreatePlatformAccountInput) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
 		deleteFn: func(context.Context, int64, int64) error { return nil },
 		listAllFn: func(_ context.Context, input service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
-			if input.Platform != "atcoder" || input.Status != "pending_review" {
+			if input.Platform != "atcoder" || input.Status != "pending_review" || input.Limit != 20 || input.Offset != 5 {
 				t.Fatalf("ListAll() input = %+v", input)
 			}
 
@@ -226,7 +234,7 @@ func TestPlatformAccountHandlerListAllIncludesOwnerForAdminView(t *testing.T) {
 	router.GET("/api/v1/admin/platform-accounts", handler.ListAll)
 
 	rec := httptest.NewRecorder()
-	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/platform-accounts?platform=atcoder&status=pending_review", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/platform-accounts?platform=atcoder&status=pending_review&limit=20&offset=5", nil)
 	router.ServeHTTP(rec, req)
 
 	if rec.Code != http.StatusOK {
@@ -251,7 +259,9 @@ func TestPlatformAccountHandlerVerifyUsesCurrentReviewer(t *testing.T) {
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 11, Username: "admin"}))
 	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
-		listMineFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listMineFn: func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		createFn: func(context.Context, int64, service.CreatePlatformAccountInput) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
@@ -299,7 +309,9 @@ func TestPlatformAccountHandlerMapsNotFound(t *testing.T) {
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
 	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
-		listMineFn: func(context.Context, int64) ([]model.PlatformAccount, error) { return nil, nil },
+		listMineFn: func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
 		createFn: func(context.Context, int64, service.CreatePlatformAccountInput) (model.PlatformAccount, error) {
 			return model.PlatformAccount{}, nil
 		},
@@ -321,6 +333,90 @@ func TestPlatformAccountHandlerMapsNotFound(t *testing.T) {
 
 	if rec.Code != http.StatusNotFound {
 		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusNotFound)
+	}
+}
+
+func TestPlatformAccountHandlerListMineRejectsInvalidLimit(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
+	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
+		listMineFn: func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			t.Fatal("ListMine() should not be called for invalid limit")
+			return nil, nil
+		},
+		createFn: func(context.Context, int64, service.CreatePlatformAccountInput) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+		deleteFn: func(context.Context, int64, int64) error { return nil },
+		listAllFn: func(context.Context, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
+		reviewFn: func(context.Context, int64, service.ReviewPlatformAccountInput) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+	})
+	router.GET("/api/v1/accounts", handler.ListMine)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/accounts?limit=abc", nil)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
+func TestPlatformAccountHandlerVerifyAllowsEmptyChunkedBody(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	now := time.Unix(1_700_100_320, 0).UTC()
+	router := gin.New()
+	router.Use(withAuthenticatedUser(model.User{ID: 11, Username: "admin"}))
+	handler := NewPlatformAccountHandler(stubPlatformAccountHTTPService{
+		listMineFn: func(context.Context, int64, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
+		createFn: func(context.Context, int64, service.CreatePlatformAccountInput) (model.PlatformAccount, error) {
+			return model.PlatformAccount{}, nil
+		},
+		deleteFn: func(context.Context, int64, int64) error { return nil },
+		listAllFn: func(context.Context, service.ListPlatformAccountsInput) ([]model.PlatformAccount, error) {
+			return nil, nil
+		},
+		reviewFn: func(_ context.Context, accountID int64, input service.ReviewPlatformAccountInput) (model.PlatformAccount, error) {
+			if accountID != 8 || input.Reason != "" || input.ReviewerUserID != 11 {
+				t.Fatalf("Review() accountID = %d input = %+v", accountID, input)
+			}
+
+			return model.PlatformAccount{
+				ID:            8,
+				SiteUserID:    3,
+				Platform:      model.PlatformCodeforces,
+				Handle:        "ecnerwala",
+				DisplayHandle: "ecnerwala",
+				Status:        model.PlatformAccountStatusVerified,
+				CreatedAt:     now,
+				UpdatedAt:     now,
+				Owner: model.PlatformAccountOwner{
+					ID:       3,
+					Username: "neal",
+					RealName: "Neal",
+				},
+			}, nil
+		},
+	})
+	router.POST("/api/v1/admin/platform-accounts/:id/verify", handler.Verify)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/admin/platform-accounts/8/verify", io.NopCloser(bytes.NewReader(nil)))
+	req.ContentLength = -1
+	req.Header.Set("Content-Type", "application/json")
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusOK)
 	}
 }
 

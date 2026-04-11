@@ -33,6 +33,8 @@ type CreatePlatformAccountParams struct {
 type ListPlatformAccountsFilter struct {
 	Platform model.Platform
 	Status   model.PlatformAccountStatus
+	Limit    int
+	Offset   int
 }
 
 type ReviewPlatformAccountParams struct {
@@ -84,18 +86,30 @@ JOIN users ON users.id = inserted.site_user_id`,
 func (r *PlatformAccountRepository) ListByUserID(
 	ctx context.Context,
 	siteUserID int64,
+	filter ListPlatformAccountsFilter,
 ) ([]model.PlatformAccount, error) {
-	rows, err := r.db.Query(
-		ctx,
-		`SELECT pa.id, pa.site_user_id, pa.platform, pa.handle, pa.display_handle,
+	var builder strings.Builder
+	builder.WriteString(`SELECT pa.id, pa.site_user_id, pa.platform, pa.handle, pa.display_handle,
        pa.status, pa.verified_at, pa.last_synced_at, pa.created_at, pa.updated_at,
        users.username, users.real_name
 FROM platform_accounts pa
 JOIN users ON users.id = pa.site_user_id
-WHERE pa.site_user_id = $1
-ORDER BY pa.created_at DESC, pa.id DESC`,
-		siteUserID,
-	)
+WHERE pa.site_user_id = $1`)
+
+	args := []any{siteUserID}
+	if filter.Platform != "" {
+		args = append(args, filter.Platform)
+		builder.WriteString(fmt.Sprintf("\n  AND pa.platform = $%d", len(args)))
+	}
+	if filter.Status != "" {
+		args = append(args, filter.Status)
+		builder.WriteString(fmt.Sprintf("\n  AND pa.status = $%d", len(args)))
+	}
+
+	args = append(args, filter.Limit, filter.Offset)
+	builder.WriteString(fmt.Sprintf("\nORDER BY pa.created_at DESC, pa.id DESC\nLIMIT $%d OFFSET $%d", len(args)-1, len(args)))
+
+	rows, err := r.db.Query(ctx, builder.String(), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -133,6 +147,9 @@ JOIN users ON users.id = pa.site_user_id`)
 	}
 
 	builder.WriteString("\nORDER BY pa.created_at DESC, pa.id DESC")
+
+	args = append(args, filter.Limit, filter.Offset)
+	builder.WriteString(fmt.Sprintf("\nLIMIT $%d OFFSET $%d", len(args)-1, len(args)))
 
 	rows, err := r.db.Query(ctx, builder.String(), args...)
 	if err != nil {
