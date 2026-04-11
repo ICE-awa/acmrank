@@ -54,3 +54,11 @@ func TestLoadRejectsUnsupportedService(t *testing.T) {
 		t.Fatal("Load() expected unsupported service error")
 	}
 }
+
+func TestLoadRejectsInvalidDurationOverride(t *testing.T) {
+	t.Setenv("ACMRANK_CONNECT_TIMEOUT", "7")
+
+	if _, err := Load(appmeta.ServiceAPI); err == nil {
+		t.Fatal("Load() expected invalid duration error")
+	}
+}

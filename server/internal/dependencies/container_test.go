@@ -2,6 +2,7 @@ package dependencies
 
 import (
 	"context"
+	"slices"
 	"testing"
 	"time"
 
@@ -39,6 +40,54 @@ func TestStatusesProbesDependenciesEachTime(t *testing.T) {
 
 	if second[0].Reachable {
 		t.Fatal("Statuses() second probe reused stale dependency status")
+	}
+}
+
+func TestStatusesRunsProbesConcurrently(t *testing.T) {
+	t.Parallel()
+
+	started := make(chan string, 3)
+	release := make(chan struct{})
+	probe := func(name string) dependencyProbe {
+		return func(context.Context) model.DependencyHealth {
+			started <- name
+			<-release
+			return model.DependencyHealth{Name: name, Configured: true, Reachable: true}
+		}
+	}
+
+	container := &Container{
+		postgresProbeFn: probe("postgres"),
+		redisProbeFn:    probe("redis"),
+		natsProbeFn:     probe("nats"),
+	}
+
+	done := make(chan []model.DependencyHealth, 1)
+	go func() {
+		done <- container.Statuses(context.Background())
+	}()
+
+	gotStarted := make([]string, 0, 3)
+	timeout := time.After(100 * time.Millisecond)
+	for len(gotStarted) < 3 {
+		select {
+		case name := <-started:
+			gotStarted = append(gotStarted, name)
+		case <-timeout:
+			t.Fatalf("Statuses() did not start all probes concurrently, started %v", gotStarted)
+		}
+	}
+
+	close(release)
+
+	statuses := <-done
+	if len(statuses) != 3 {
+		t.Fatalf("Statuses() len = %d, want 3", len(statuses))
+	}
+
+	slices.Sort(gotStarted)
+	if !slices.Equal(gotStarted, []string{"nats", "postgres", "redis"}) {
+		t.Fatalf("Statuses() started probes = %v", gotStarted)
 	}
 }
 

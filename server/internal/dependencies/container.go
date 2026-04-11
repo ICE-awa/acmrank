@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/ICE-awa/acmrank/server/internal/config"
@@ -69,11 +70,29 @@ func (c *Container) StartedAt() time.Time {
 }
 
 func (c *Container) Statuses(ctx context.Context) []model.DependencyHealth {
-	return []model.DependencyHealth{
-		c.runProbe(ctx, "postgres", c.postgresProbeFn),
-		c.runProbe(ctx, "redis", c.redisProbeFn),
-		c.runProbe(ctx, "nats", c.natsProbeFn),
+	probes := []struct {
+		name  string
+		probe dependencyProbe
+	}{
+		{name: "postgres", probe: c.postgresProbeFn},
+		{name: "redis", probe: c.redisProbeFn},
+		{name: "nats", probe: c.natsProbeFn},
 	}
+
+	statuses := make([]model.DependencyHealth, len(probes))
+	var waitGroup sync.WaitGroup
+	waitGroup.Add(len(probes))
+
+	for index, probe := range probes {
+		go func(index int, probeName string, probeFn dependencyProbe) {
+			defer waitGroup.Done()
+			statuses[index] = c.runProbe(ctx, probeName, probeFn)
+		}(index, probe.name, probe.probe)
+	}
+
+	waitGroup.Wait()
+
+	return statuses
 }
 
 func (c *Container) Close() error {
@@ -164,6 +183,11 @@ func newNATS(
 		nats.Name("acmrank-bootstrap"),
 	)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := conn.FlushTimeout(timeout); err != nil {
+		conn.Close()
 		return nil, err
 	}
 

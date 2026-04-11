@@ -26,6 +26,16 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		return Config{}, fmt.Errorf("unsupported service %q", service)
 	}
 
+	connectTimeout, err := durationValue("ACMRANK_CONNECT_TIMEOUT", 3*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+
+	shutdownTimeout, err := durationValue("ACMRANK_SHUTDOWN_TIMEOUT", 10*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+
 	return Config{
 		Service:         service,
 		Version:         stringValue("ACMRANK_VERSION", "dev"),
@@ -34,8 +44,8 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		DatabaseURL:     stringValue("ACMRANK_DATABASE_URL", "postgres://acmrank:acmrank_dev@127.0.0.1:5432/acmrank?sslmode=disable"),
 		RedisAddr:       stringValue("ACMRANK_REDIS_ADDR", "127.0.0.1:6379"),
 		NATSURL:         stringValue("ACMRANK_NATS_URL", "nats://127.0.0.1:4222"),
-		ConnectTimeout:  durationValue("ACMRANK_CONNECT_TIMEOUT", 3*time.Second),
-		ShutdownTimeout: durationValue("ACMRANK_SHUTDOWN_TIMEOUT", 10*time.Second),
+		ConnectTimeout:  connectTimeout,
+		ShutdownTimeout: shutdownTimeout,
 	}, nil
 }
 
@@ -64,16 +74,16 @@ func stringValue(key string, fallback string) string {
 	return fallback
 }
 
-func durationValue(key string, fallback time.Duration) time.Duration {
+func durationValue(key string, fallback time.Duration) (time.Duration, error) {
 	raw, ok := os.LookupEnv(key)
 	if !ok || raw == "" {
-		return fallback
+		return fallback, nil
 	}
 
 	parsed, err := time.ParseDuration(raw)
 	if err != nil {
-		return fallback
+		return 0, fmt.Errorf("parse %s: %w", key, err)
 	}
 
-	return parsed
+	return parsed, nil
 }
