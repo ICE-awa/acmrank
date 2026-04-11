@@ -155,7 +155,7 @@ func mergeLuoguProblemFact(
 	incoming.FirstACAt = existing.FirstACAt
 	incoming.FirstACSource = existing.FirstACSource
 	incoming.FirstACSubmissionID = existing.FirstACSubmissionRef
-	incoming.FirstACEventRawID = existing.FirstACEventRawID
+	incoming.FirstACEventRawID = copyOptionalInt64(existing.FirstACEventRawID)
 	incoming.LatestACAt = existing.LatestACAt
 
 	return incoming

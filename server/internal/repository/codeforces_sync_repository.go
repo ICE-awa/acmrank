@@ -409,7 +409,7 @@ func mergeProblemFact(
 		incoming.FirstACAt = existing.FirstACAt
 		incoming.FirstACSource = existing.FirstACSource
 		incoming.FirstACSubmissionID = existing.FirstACSubmissionRef
-		incoming.FirstACEventRawID = existing.FirstACEventRawID
+		incoming.FirstACEventRawID = copyOptionalInt64(existing.FirstACEventRawID)
 	}
 
 	if existing.LatestACAt.After(incoming.LatestACAt) {
@@ -417,6 +417,15 @@ func mergeProblemFact(
 	}
 
 	return incoming
+}
+
+func copyOptionalInt64(value *int64) *int64 {
+	if value == nil {
+		return nil
+	}
+
+	copied := *value
+	return &copied
 }
 
 func mergeContestSummary(
