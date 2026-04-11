@@ -1,11 +1,18 @@
 package v1
 
-type CodeforcesSyncResponse struct {
-	SyncedAt            string `json:"synced_at"`
-	AcceptedEventCount  int    `json:"accepted_event_count"`
-	ProblemFactCount    int    `json:"problem_fact_count"`
-	ContestSummaryCount int    `json:"contest_summary_count"`
-	ContestHistoryCount int    `json:"contest_history_count"`
+type SyncJobResponse struct {
+	ID                int64   `json:"id"`
+	PlatformAccountID *int64  `json:"platform_account_id,omitempty"`
+	Platform          string  `json:"platform,omitempty"`
+	JobType           string  `json:"job_type"`
+	Status            string  `json:"status"`
+	ScheduledAt       string  `json:"scheduled_at"`
+	StartedAt         *string `json:"started_at,omitempty"`
+	FinishedAt        *string `json:"finished_at,omitempty"`
+	AttemptCount      int     `json:"attempt_count"`
+	ErrorMessage      string  `json:"error_message,omitempty"`
+	CreatedAt         string  `json:"created_at"`
+	UpdatedAt         string  `json:"updated_at"`
 }
 
 type PlatformProfileSnapshotResponse struct {

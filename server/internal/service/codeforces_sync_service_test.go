@@ -70,6 +70,45 @@ func (s stubCodeforcesSyncStore) ListContestSummariesByUserIDAndPlatform(
 	return s.listContestSummaryFn(ctx, siteUserID, platform, filter)
 }
 
+type stubCodeforcesSyncJobStore struct {
+	enqueueFn     func(context.Context, repository.EnqueueSyncJobParams) (model.SyncJob, error)
+	claimNextFn   func(context.Context, model.SyncJobType, time.Time) (model.SyncJob, error)
+	markSuccessFn func(context.Context, int64, time.Time) error
+	markFailedFn  func(context.Context, int64, string, time.Time) error
+}
+
+func (s stubCodeforcesSyncJobStore) Enqueue(
+	ctx context.Context,
+	params repository.EnqueueSyncJobParams,
+) (model.SyncJob, error) {
+	return s.enqueueFn(ctx, params)
+}
+
+func (s stubCodeforcesSyncJobStore) ClaimNextQueuedJob(
+	ctx context.Context,
+	jobType model.SyncJobType,
+	startedAt time.Time,
+) (model.SyncJob, error) {
+	return s.claimNextFn(ctx, jobType, startedAt)
+}
+
+func (s stubCodeforcesSyncJobStore) MarkSucceeded(
+	ctx context.Context,
+	jobID int64,
+	finishedAt time.Time,
+) error {
+	return s.markSuccessFn(ctx, jobID, finishedAt)
+}
+
+func (s stubCodeforcesSyncJobStore) MarkFailed(
+	ctx context.Context,
+	jobID int64,
+	errorMessage string,
+	finishedAt time.Time,
+) error {
+	return s.markFailedFn(ctx, jobID, errorMessage, finishedAt)
+}
+
 type stubCodeforcesSyncClient struct {
 	fetchProfileFn             func(context.Context, string) (integration.CodeforcesProfile, error)
 	fetchAcceptedSubmissionsFn func(context.Context, string) ([]integration.CodeforcesAcceptedSubmission, error)
@@ -141,6 +180,16 @@ func TestCodeforcesSyncServiceSyncPersistsFetchedData(t *testing.T) {
 			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
 				return nil, nil
 			},
+		},
+		stubCodeforcesSyncJobStore{
+			enqueueFn: func(context.Context, repository.EnqueueSyncJobParams) (model.SyncJob, error) {
+				return model.SyncJob{}, nil
+			},
+			claimNextFn: func(context.Context, model.SyncJobType, time.Time) (model.SyncJob, error) {
+				return model.SyncJob{}, repository.ErrNoPendingSyncJob
+			},
+			markSuccessFn: func(context.Context, int64, time.Time) error { return nil },
+			markFailedFn:  func(context.Context, int64, string, time.Time) error { return nil },
 		},
 		stubCodeforcesSyncClient{
 			fetchProfileFn: func(context.Context, string) (integration.CodeforcesProfile, error) {
@@ -245,6 +294,16 @@ func TestCodeforcesSyncServiceSyncRejectsUnverifiedAccount(t *testing.T) {
 				return nil, nil
 			},
 		},
+		stubCodeforcesSyncJobStore{
+			enqueueFn: func(context.Context, repository.EnqueueSyncJobParams) (model.SyncJob, error) {
+				return model.SyncJob{}, nil
+			},
+			claimNextFn: func(context.Context, model.SyncJobType, time.Time) (model.SyncJob, error) {
+				return model.SyncJob{}, repository.ErrNoPendingSyncJob
+			},
+			markSuccessFn: func(context.Context, int64, time.Time) error { return nil },
+			markFailedFn:  func(context.Context, int64, string, time.Time) error { return nil },
+		},
 		stubCodeforcesSyncClient{
 			fetchProfileFn: func(context.Context, string) (integration.CodeforcesProfile, error) {
 				return integration.CodeforcesProfile{}, nil
@@ -292,6 +351,16 @@ func TestCodeforcesSyncServiceGetLatestProfileMapsNotFound(t *testing.T) {
 				return nil, nil
 			},
 		},
+		stubCodeforcesSyncJobStore{
+			enqueueFn: func(context.Context, repository.EnqueueSyncJobParams) (model.SyncJob, error) {
+				return model.SyncJob{}, nil
+			},
+			claimNextFn: func(context.Context, model.SyncJobType, time.Time) (model.SyncJob, error) {
+				return model.SyncJob{}, repository.ErrNoPendingSyncJob
+			},
+			markSuccessFn: func(context.Context, int64, time.Time) error { return nil },
+			markFailedFn:  func(context.Context, int64, string, time.Time) error { return nil },
+		},
 		stubCodeforcesSyncClient{
 			fetchProfileFn: func(context.Context, string) (integration.CodeforcesProfile, error) {
 				return integration.CodeforcesProfile{}, nil
@@ -308,5 +377,159 @@ func TestCodeforcesSyncServiceGetLatestProfileMapsNotFound(t *testing.T) {
 	_, err := service.GetLatestProfile(context.Background(), 7, 8)
 	if !errors.Is(err, ErrCodeforcesSyncDataNotFound) {
 		t.Fatalf("GetLatestProfile() error = %v, want %v", err, ErrCodeforcesSyncDataNotFound)
+	}
+}
+
+func TestCodeforcesSyncServiceEnqueueSyncCreatesQueuedJob(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_700_400_500, 0).UTC()
+	service := NewCodeforcesSyncService(
+		stubCodeforcesPlatformAccountStore{
+			getByIDFn: func(context.Context, int64) (model.PlatformAccount, error) {
+				return model.PlatformAccount{
+					ID:         8,
+					SiteUserID: 7,
+					Platform:   model.PlatformCodeforces,
+					Status:     model.PlatformAccountStatusVerified,
+				}, nil
+			},
+		},
+		stubCodeforcesSyncStore{
+			saveSyncFn: func(context.Context, repository.SaveCodeforcesSyncParams) error { return nil },
+			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
+				return model.PlatformProfileSnapshot{}, nil
+			},
+			listContestHistoryFn: func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error) {
+				return nil, nil
+			},
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+				return nil, nil
+			},
+			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
+				return nil, nil
+			},
+		},
+		stubCodeforcesSyncJobStore{
+			enqueueFn: func(_ context.Context, params repository.EnqueueSyncJobParams) (model.SyncJob, error) {
+				if params.SiteUserID != 7 || params.PlatformAccountID != 8 || params.JobType != model.SyncJobTypeCodeforces {
+					t.Fatalf("Enqueue() params = %+v", params)
+				}
+
+				accountID := int64(8)
+				return model.SyncJob{
+					ID:                11,
+					PlatformAccountID: &accountID,
+					Platform:          "codeforces",
+					JobType:           model.SyncJobTypeCodeforces,
+					Status:            model.SyncJobStatusQueued,
+					ScheduledAt:       now,
+					CreatedAt:         now,
+					UpdatedAt:         now,
+				}, nil
+			},
+			claimNextFn: func(context.Context, model.SyncJobType, time.Time) (model.SyncJob, error) {
+				return model.SyncJob{}, repository.ErrNoPendingSyncJob
+			},
+			markSuccessFn: func(context.Context, int64, time.Time) error { return nil },
+			markFailedFn:  func(context.Context, int64, string, time.Time) error { return nil },
+		},
+		stubCodeforcesSyncClient{
+			fetchProfileFn: func(context.Context, string) (integration.CodeforcesProfile, error) {
+				return integration.CodeforcesProfile{}, nil
+			},
+			fetchAcceptedSubmissionsFn: func(context.Context, string) ([]integration.CodeforcesAcceptedSubmission, error) { return nil, nil },
+			fetchContestHistoryFn:      func(context.Context, string) ([]integration.CodeforcesContestHistoryEntry, error) { return nil, nil },
+		},
+	)
+	service.now = func() time.Time { return now }
+
+	job, err := service.EnqueueSync(context.Background(), 7, 8)
+	if err != nil {
+		t.Fatalf("EnqueueSync() error = %v", err)
+	}
+	if job.ID != 11 || job.Status != model.SyncJobStatusQueued {
+		t.Fatalf("EnqueueSync() job = %+v", job)
+	}
+}
+
+func TestCodeforcesSyncServiceProcessNextQueuedSyncRunsAndMarksSuccess(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_700_400_700, 0).UTC()
+	accountID := int64(8)
+	siteUserID := int64(7)
+	markSucceededCalled := false
+	service := NewCodeforcesSyncService(
+		stubCodeforcesPlatformAccountStore{
+			getByIDFn: func(context.Context, int64) (model.PlatformAccount, error) {
+				return model.PlatformAccount{
+					ID:         8,
+					SiteUserID: 7,
+					Platform:   model.PlatformCodeforces,
+					Handle:     "tourist",
+					Status:     model.PlatformAccountStatusVerified,
+				}, nil
+			},
+		},
+		stubCodeforcesSyncStore{
+			saveSyncFn: func(context.Context, repository.SaveCodeforcesSyncParams) error { return nil },
+			getLatestProfileFn: func(context.Context, int64) (model.PlatformProfileSnapshot, error) {
+				return model.PlatformProfileSnapshot{}, nil
+			},
+			listContestHistoryFn: func(context.Context, int64, repository.ListCodeforcesSyncFilter) ([]model.PlatformContestHistory, error) {
+				return nil, nil
+			},
+			listProblemFactsFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ProblemFact, error) {
+				return nil, nil
+			},
+			listContestSummaryFn: func(context.Context, int64, model.Platform, repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error) {
+				return nil, nil
+			},
+		},
+		stubCodeforcesSyncJobStore{
+			enqueueFn: func(context.Context, repository.EnqueueSyncJobParams) (model.SyncJob, error) {
+				return model.SyncJob{}, nil
+			},
+			claimNextFn: func(_ context.Context, jobType model.SyncJobType, startedAt time.Time) (model.SyncJob, error) {
+				if jobType != model.SyncJobTypeCodeforces {
+					t.Fatalf("ClaimNextQueuedJob() jobType = %q", jobType)
+				}
+
+				return model.SyncJob{
+					ID:                21,
+					SiteUserID:        &siteUserID,
+					PlatformAccountID: &accountID,
+					Platform:          "codeforces",
+					JobType:           model.SyncJobTypeCodeforces,
+					Status:            model.SyncJobStatusRunning,
+					ScheduledAt:       startedAt,
+				}, nil
+			},
+			markSuccessFn: func(context.Context, int64, time.Time) error {
+				markSucceededCalled = true
+				return nil
+			},
+			markFailedFn: func(context.Context, int64, string, time.Time) error { return nil },
+		},
+		stubCodeforcesSyncClient{
+			fetchProfileFn: func(context.Context, string) (integration.CodeforcesProfile, error) {
+				return integration.CodeforcesProfile{DisplayName: "tourist", Payload: []byte(`{}`), FetchedAt: now}, nil
+			},
+			fetchAcceptedSubmissionsFn: func(context.Context, string) ([]integration.CodeforcesAcceptedSubmission, error) { return nil, nil },
+			fetchContestHistoryFn:      func(context.Context, string) ([]integration.CodeforcesContestHistoryEntry, error) { return nil, nil },
+		},
+	)
+	service.now = func() time.Time { return now }
+
+	processed, err := service.ProcessNextQueuedSync(context.Background())
+	if err != nil {
+		t.Fatalf("ProcessNextQueuedSync() error = %v", err)
+	}
+	if !processed {
+		t.Fatal("ProcessNextQueuedSync() processed = false, want true")
+	}
+	if !markSucceededCalled {
+		t.Fatal("ProcessNextQueuedSync() expected MarkSucceeded to be called")
 	}
 }

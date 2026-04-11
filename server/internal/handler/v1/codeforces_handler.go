@@ -14,7 +14,7 @@ import (
 )
 
 type CodeforcesSyncService interface {
-	Sync(ctx context.Context, siteUserID int64, accountID int64) (service.CodeforcesSyncResult, error)
+	EnqueueSync(ctx context.Context, siteUserID int64, accountID int64) (model.SyncJob, error)
 	GetLatestProfile(ctx context.Context, siteUserID int64, accountID int64) (model.PlatformProfileSnapshot, error)
 	ListContestHistories(ctx context.Context, siteUserID int64, accountID int64, input service.ListCodeforcesSyncInput) ([]model.PlatformContestHistory, error)
 	ListProblemFacts(ctx context.Context, siteUserID int64, input service.ListCodeforcesSyncInput) ([]model.ProblemFact, error)
@@ -42,18 +42,14 @@ func (h *CodeforcesHandler) Sync(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.Sync(c.Request.Context(), user.ID, accountID)
+	job, err := h.service.EnqueueSync(c.Request.Context(), user.ID, accountID)
 	if err != nil {
 		writeCodeforcesError(c, err)
 		return
 	}
 
-	c.JSON(http.StatusOK, dtov1.CodeforcesSyncResponse{
-		SyncedAt:            result.SyncedAt.UTC().Format(time.RFC3339),
-		AcceptedEventCount:  result.AcceptedEventCount,
-		ProblemFactCount:    result.ProblemFactCount,
-		ContestSummaryCount: result.ContestSummaryCount,
-		ContestHistoryCount: result.ContestHistoryCount,
+	c.JSON(http.StatusAccepted, gin.H{
+		"job": toSyncJobResponse(job),
 	})
 }
 
@@ -289,4 +285,33 @@ func writeCodeforcesError(c *gin.Context, err error) {
 	}
 
 	c.JSON(statusCode, gin.H{"error": message})
+}
+
+func toSyncJobResponse(job model.SyncJob) dtov1.SyncJobResponse {
+	var startedAt *string
+	if job.StartedAt != nil {
+		formatted := job.StartedAt.UTC().Format(time.RFC3339)
+		startedAt = &formatted
+	}
+
+	var finishedAt *string
+	if job.FinishedAt != nil {
+		formatted := job.FinishedAt.UTC().Format(time.RFC3339)
+		finishedAt = &formatted
+	}
+
+	return dtov1.SyncJobResponse{
+		ID:                job.ID,
+		PlatformAccountID: job.PlatformAccountID,
+		Platform:          job.Platform,
+		JobType:           string(job.JobType),
+		Status:            string(job.Status),
+		ScheduledAt:       job.ScheduledAt.UTC().Format(time.RFC3339),
+		StartedAt:         startedAt,
+		FinishedAt:        finishedAt,
+		AttemptCount:      job.AttemptCount,
+		ErrorMessage:      job.ErrorMessage,
+		CreatedAt:         job.CreatedAt.UTC().Format(time.RFC3339),
+		UpdatedAt:         job.UpdatedAt.UTC().Format(time.RFC3339),
+	}
 }

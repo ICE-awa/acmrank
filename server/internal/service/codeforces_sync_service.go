@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ICE-awa/acmrank/server/internal/integration"
@@ -35,6 +36,13 @@ type CodeforcesSyncStore interface {
 	ListContestSummariesByUserIDAndPlatform(ctx context.Context, siteUserID int64, platform model.Platform, filter repository.ListCodeforcesSyncFilter) ([]model.ContestACSummary, error)
 }
 
+type CodeforcesSyncJobStore interface {
+	Enqueue(ctx context.Context, params repository.EnqueueSyncJobParams) (model.SyncJob, error)
+	ClaimNextQueuedJob(ctx context.Context, jobType model.SyncJobType, startedAt time.Time) (model.SyncJob, error)
+	MarkSucceeded(ctx context.Context, jobID int64, finishedAt time.Time) error
+	MarkFailed(ctx context.Context, jobID int64, errorMessage string, finishedAt time.Time) error
+}
+
 type CodeforcesSyncClient interface {
 	FetchProfile(ctx context.Context, handle string) (integration.CodeforcesProfile, error)
 	FetchAcceptedSubmissions(ctx context.Context, handle string) ([]integration.CodeforcesAcceptedSubmission, error)
@@ -57,6 +65,7 @@ type CodeforcesSyncResult struct {
 type CodeforcesSyncService struct {
 	accountStore CodeforcesPlatformAccountStore
 	syncStore    CodeforcesSyncStore
+	jobStore     CodeforcesSyncJobStore
 	client       CodeforcesSyncClient
 	now          func() time.Time
 }
@@ -64,14 +73,73 @@ type CodeforcesSyncService struct {
 func NewCodeforcesSyncService(
 	accountStore CodeforcesPlatformAccountStore,
 	syncStore CodeforcesSyncStore,
+	jobStore CodeforcesSyncJobStore,
 	client CodeforcesSyncClient,
 ) *CodeforcesSyncService {
 	return &CodeforcesSyncService{
 		accountStore: accountStore,
 		syncStore:    syncStore,
+		jobStore:     jobStore,
 		client:       client,
 		now:          time.Now,
 	}
+}
+
+func (s *CodeforcesSyncService) EnqueueSync(
+	ctx context.Context,
+	siteUserID int64,
+	accountID int64,
+) (model.SyncJob, error) {
+	account, err := s.loadOwnedCodeforcesAccount(ctx, siteUserID, accountID)
+	if err != nil {
+		return model.SyncJob{}, err
+	}
+	if account.Status != model.PlatformAccountStatusVerified {
+		return model.SyncJob{}, ErrPlatformAccountNotReady
+	}
+
+	job, err := s.jobStore.Enqueue(ctx, repository.EnqueueSyncJobParams{
+		SiteUserID:        siteUserID,
+		PlatformAccountID: account.ID,
+		Platform:          string(account.Platform),
+		JobType:           model.SyncJobTypeCodeforces,
+		ScheduledAt:       s.now().UTC(),
+	})
+	if err != nil {
+		return model.SyncJob{}, fmt.Errorf("enqueue codeforces sync: %w", err)
+	}
+
+	return job, nil
+}
+
+func (s *CodeforcesSyncService) ProcessNextQueuedSync(
+	ctx context.Context,
+) (bool, error) {
+	startedAt := s.now().UTC()
+	job, err := s.jobStore.ClaimNextQueuedJob(ctx, model.SyncJobTypeCodeforces, startedAt)
+	if err != nil {
+		if errors.Is(err, repository.ErrNoPendingSyncJob) {
+			return false, nil
+		}
+
+		return false, fmt.Errorf("claim codeforces sync job: %w", err)
+	}
+
+	processErr := s.processSyncJob(ctx, job)
+	finishedAt := s.now().UTC()
+	if processErr != nil {
+		if markErr := s.jobStore.MarkFailed(ctx, job.ID, syncJobErrorMessage(processErr), finishedAt); markErr != nil {
+			return true, errors.Join(processErr, fmt.Errorf("mark codeforces sync job failed: %w", markErr))
+		}
+
+		return true, fmt.Errorf("process codeforces sync job %d: %w", job.ID, processErr)
+	}
+
+	if err := s.jobStore.MarkSucceeded(ctx, job.ID, finishedAt); err != nil {
+		return true, fmt.Errorf("mark codeforces sync job succeeded: %w", err)
+	}
+
+	return true, nil
 }
 
 func (s *CodeforcesSyncService) Sync(
@@ -86,6 +154,37 @@ func (s *CodeforcesSyncService) Sync(
 	if account.Status != model.PlatformAccountStatusVerified {
 		return CodeforcesSyncResult{}, ErrPlatformAccountNotReady
 	}
+
+	return s.syncAccount(ctx, account)
+}
+
+func (s *CodeforcesSyncService) processSyncJob(
+	ctx context.Context,
+	job model.SyncJob,
+) error {
+	if job.PlatformAccountID == nil {
+		return errors.New("sync job is missing platform account id")
+	}
+	if job.SiteUserID == nil {
+		return errors.New("sync job is missing site user id")
+	}
+
+	account, err := s.loadOwnedCodeforcesAccount(ctx, *job.SiteUserID, *job.PlatformAccountID)
+	if err != nil {
+		return err
+	}
+	if account.Status != model.PlatformAccountStatusVerified {
+		return ErrPlatformAccountNotReady
+	}
+
+	_, err = s.syncAccount(ctx, account)
+	return err
+}
+
+func (s *CodeforcesSyncService) syncAccount(
+	ctx context.Context,
+	account model.PlatformAccount,
+) (CodeforcesSyncResult, error) {
 
 	var profile integration.CodeforcesProfile
 	var acceptedSubmissions []integration.CodeforcesAcceptedSubmission
@@ -344,4 +443,17 @@ func mapCodeforcesClientError(err error) error {
 	default:
 		return fmt.Errorf("codeforces client: %w", err)
 	}
+}
+
+func syncJobErrorMessage(err error) string {
+	message := strings.TrimSpace(err.Error())
+	if message == "" {
+		return "codeforces sync failed"
+	}
+
+	if len(message) <= 512 {
+		return message
+	}
+
+	return message[:512]
 }

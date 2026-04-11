@@ -14,19 +14,19 @@ import (
 )
 
 type stubCodeforcesHTTPService struct {
-	syncFn               func(context.Context, int64, int64) (service.CodeforcesSyncResult, error)
+	enqueueSyncFn        func(context.Context, int64, int64) (model.SyncJob, error)
 	getLatestProfileFn   func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error)
 	listContestHistoryFn func(context.Context, int64, int64, service.ListCodeforcesSyncInput) ([]model.PlatformContestHistory, error)
 	listProblemFactsFn   func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ProblemFact, error)
 	listContestSummaryFn func(context.Context, int64, service.ListCodeforcesSyncInput) ([]model.ContestACSummary, error)
 }
 
-func (s stubCodeforcesHTTPService) Sync(
+func (s stubCodeforcesHTTPService) EnqueueSync(
 	ctx context.Context,
 	siteUserID int64,
 	accountID int64,
-) (service.CodeforcesSyncResult, error) {
-	return s.syncFn(ctx, siteUserID, accountID)
+) (model.SyncJob, error) {
+	return s.enqueueSyncFn(ctx, siteUserID, accountID)
 }
 
 func (s stubCodeforcesHTTPService) GetLatestProfile(
@@ -62,24 +62,27 @@ func (s stubCodeforcesHTTPService) ListContestSummaries(
 	return s.listContestSummaryFn(ctx, siteUserID, input)
 }
 
-func TestCodeforcesHandlerSyncReturnsStats(t *testing.T) {
+func TestCodeforcesHandlerSyncReturnsAcceptedJob(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	now := time.Unix(1_700_500_000, 0).UTC()
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
 	handler := NewCodeforcesHandler(stubCodeforcesHTTPService{
-		syncFn: func(_ context.Context, siteUserID int64, accountID int64) (service.CodeforcesSyncResult, error) {
+		enqueueSyncFn: func(_ context.Context, siteUserID int64, accountID int64) (model.SyncJob, error) {
 			if siteUserID != 7 || accountID != 4 {
-				t.Fatalf("Sync() siteUserID=%d accountID=%d", siteUserID, accountID)
+				t.Fatalf("EnqueueSync() siteUserID=%d accountID=%d", siteUserID, accountID)
 			}
 
-			return service.CodeforcesSyncResult{
-				SyncedAt:            now,
-				AcceptedEventCount:  3,
-				ProblemFactCount:    2,
-				ContestSummaryCount: 1,
-				ContestHistoryCount: 1,
+			return model.SyncJob{
+				ID:                9,
+				PlatformAccountID: &accountID,
+				Platform:          "codeforces",
+				JobType:           model.SyncJobTypeCodeforces,
+				Status:            model.SyncJobStatusQueued,
+				ScheduledAt:       now,
+				CreatedAt:         now,
+				UpdatedAt:         now,
 			}, nil
 		},
 		getLatestProfileFn: func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error) {
@@ -101,8 +104,8 @@ func TestCodeforcesHandlerSyncReturnsStats(t *testing.T) {
 	req := httptest.NewRequest(http.MethodPost, "/api/v1/accounts/4/sync", nil)
 	router.ServeHTTP(rec, req)
 
-	if rec.Code != http.StatusOK {
-		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusOK)
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusAccepted)
 	}
 }
 
@@ -114,8 +117,8 @@ func TestCodeforcesHandlerGetLatestProfileReturnsSnapshot(t *testing.T) {
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
 	handler := NewCodeforcesHandler(stubCodeforcesHTTPService{
-		syncFn: func(context.Context, int64, int64) (service.CodeforcesSyncResult, error) {
-			return service.CodeforcesSyncResult{}, nil
+		enqueueSyncFn: func(context.Context, int64, int64) (model.SyncJob, error) {
+			return model.SyncJob{}, nil
 		},
 		getLatestProfileFn: func(_ context.Context, siteUserID int64, accountID int64) (model.PlatformProfileSnapshot, error) {
 			if siteUserID != 7 || accountID != 4 {
@@ -171,8 +174,8 @@ func TestCodeforcesHandlerListProblemFactsAppliesPagination(t *testing.T) {
 	router := gin.New()
 	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
 	handler := NewCodeforcesHandler(stubCodeforcesHTTPService{
-		syncFn: func(context.Context, int64, int64) (service.CodeforcesSyncResult, error) {
-			return service.CodeforcesSyncResult{}, nil
+		enqueueSyncFn: func(context.Context, int64, int64) (model.SyncJob, error) {
+			return model.SyncJob{}, nil
 		},
 		getLatestProfileFn: func(context.Context, int64, int64) (model.PlatformProfileSnapshot, error) {
 			return model.PlatformProfileSnapshot{}, nil

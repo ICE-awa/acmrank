@@ -40,6 +40,7 @@ func (s *stubCodeforcesSyncDB) BeginTx(ctx context.Context, _ pgx.TxOptions) (pg
 
 type stubCodeforcesSyncTx struct {
 	execFn     func(context.Context, string, ...any) (pgconn.CommandTag, error)
+	queryFn    func(context.Context, string, ...any) (pgx.Rows, error)
 	queryRowFn func(context.Context, string, ...any) pgx.Row
 	commitFn   func(context.Context) error
 	rollbackFn func(context.Context) error
@@ -51,6 +52,14 @@ func (s stubCodeforcesSyncTx) Exec(
 	args ...any,
 ) (pgconn.CommandTag, error) {
 	return s.execFn(ctx, query, args...)
+}
+
+func (s stubCodeforcesSyncTx) Query(
+	ctx context.Context,
+	query string,
+	args ...any,
+) (pgx.Rows, error) {
+	return s.queryFn(ctx, query, args...)
 }
 
 func (s stubCodeforcesSyncTx) QueryRow(ctx context.Context, query string, args ...any) pgx.Row {
@@ -178,19 +187,31 @@ func TestCodeforcesSyncRepositorySaveSyncUpdatesLastSyncedAt(t *testing.T) {
 
 				return pgconn.NewCommandTag("INSERT 0 1"), nil
 			},
-			queryRowFn: func(_ context.Context, query string, args ...any) pgx.Row {
-				if !strings.Contains(query, "INSERT INTO accepted_event_raw") {
-					t.Fatalf("unexpected QueryRow() query = %q", query)
-				}
-
-				return stubRow{
-					scanFn: func(dest ...any) error {
-						*(dest[0].(*int64)) = 9
-						return nil
-					},
+			queryFn: func(_ context.Context, query string, args ...any) (pgx.Rows, error) {
+				switch {
+				case strings.Contains(query, "INSERT INTO accepted_event_raw"):
+					return &stubCodeforcesSyncRows{
+						scanFns: []func(dest ...any) error{
+							func(dest ...any) error {
+								*(dest[0].(*int64)) = 9
+								*(dest[1].(*string)) = "CF-1000A"
+								*(dest[2].(*time.Time)) = now
+								*(dest[3].(*string)) = "1"
+								return nil
+							},
+						},
+					}, nil
+				case strings.Contains(query, "FROM problem_facts"):
+					return &stubCodeforcesSyncRows{}, nil
+				case strings.Contains(query, "FROM contest_ac_summaries"):
+					return &stubCodeforcesSyncRows{}, nil
+				default:
+					t.Fatalf("unexpected Query() query = %q", query)
+					return nil, nil
 				}
 			},
-			commitFn: func(context.Context) error { return nil },
+			queryRowFn: func(context.Context, string, ...any) pgx.Row { return stubRow{} },
+			commitFn:   func(context.Context) error { return nil },
 		}, nil
 	}
 

@@ -274,14 +274,15 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 
 ### 9.7 T07 当前落地说明
 - 当前 `Codeforces` 主链路已接入官方 API `user.info / user.status / user.rating`。
-- 当前手动同步入口为 `POST /api/v1/accounts/:id/sync`，仅允许当前用户同步自己名下、已审核通过的 `Codeforces` 账号。
+- 当前手动同步入口为 `POST /api/v1/accounts/:id/sync`，仅允许当前用户为自己名下、已审核通过的 `Codeforces` 账号创建同步任务，并立即返回 `202 Accepted`。
 - 同步结果会直接写入：
   - `platform_profile_snapshots`
   - `accepted_event_raw`
   - `problem_facts`
   - `contest_ac_summaries`
   - `platform_contest_histories`
-- 为了先完成 T07 最小闭环，当前由 `api` 进程直接发起 `Codeforces` 官方 API 请求；后续再迁移到独立 `sync-worker` 和异步投递链路，但不改变当前落库模型与查询接口。
+- 当前异步执行方式是：接口写入 `sync_jobs`，再由 `api` 进程内的后台 worker 轮询并处理 `Codeforces` 同步任务。
+- 当前写库已改为分批批量 upsert，`contest_ac_summaries` 的题目集合合并也在应用层完成，避免逐条数据库 round-trip 和数据库侧高成本数组聚合。
 
 ## 10. 前端结构
 
