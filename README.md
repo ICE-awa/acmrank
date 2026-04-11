@@ -60,14 +60,21 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
   - `POST /api/v1/auth/refresh`
   - `POST /api/v1/auth/logout`
   - `GET /api/v1/users/me`
+  - `GET /api/v1/users/me/codeforces/problem-facts`
+  - `GET /api/v1/users/me/codeforces/contest-ac-summaries`
   - `GET /api/v1/accounts`
   - `POST /api/v1/accounts`
   - `DELETE /api/v1/accounts/:id`
+  - `POST /api/v1/accounts/:id/sync`
+  - `GET /api/v1/accounts/:id/codeforces/profile`
+  - `GET /api/v1/accounts/:id/codeforces/contest-histories`
   - `GET /api/v1/admin/platform-accounts`
   - `POST /api/v1/admin/platform-accounts/:id/verify`
   - `POST /api/v1/admin/platform-accounts/:id/disable`
   - `POST /api/v1/admin/platform-accounts/:id/reject`
 - 账号列表接口支持 `limit` 与 `offset` 查询参数；当前默认 `limit=50`，并且会把超大请求裁剪到 `100`。
+- `Codeforces` 当前已支持官方 API 异步同步入口。`POST /api/v1/accounts/:id/sync` 会返回一个已入队的 `sync_job`，再由后台 worker 拉起实际同步。
+- `Codeforces` 同步会写入最新 profile、原始 `AC` 事件、`problem_facts`、`contest_ac_summaries` 和比赛历史。
 - 认证模型固定为 `JWT AT + RT + HttpOnly Cookie`。
 - 当前仓库尚未接入真实邮件投递能力，因此“邮箱验证基础流程”阶段会直接在注册响应里返回一次性的邮箱验证 token，便于本地联调与自动化测试。
 - 本地默认认证配置已写入 `.env.example`，生产环境必须覆盖默认密钥。

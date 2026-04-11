@@ -12,15 +12,17 @@ import (
 	"github.com/ICE-awa/acmrank/server/internal/config"
 	"github.com/ICE-awa/acmrank/server/internal/dependencies"
 	handlerv1 "github.com/ICE-awa/acmrank/server/internal/handler/v1"
+	"github.com/ICE-awa/acmrank/server/internal/integration"
 	"github.com/ICE-awa/acmrank/server/internal/repository"
 	"github.com/ICE-awa/acmrank/server/internal/service"
 	"github.com/gin-gonic/gin"
 )
 
 type App struct {
-	config       config.Config
-	dependencies *dependencies.Container
-	server       *http.Server
+	config            config.Config
+	dependencies      *dependencies.Container
+	server            *http.Server
+	backgroundWorkers []func(context.Context)
 }
 
 func RunService(ctx context.Context, serviceName appmeta.ServiceName) error {
@@ -60,19 +62,23 @@ func NewApp(ctx context.Context, cfg config.Config) (*App, error) {
 	v1 := router.Group("/api/v1")
 	v1.GET("/health", healthHandler.Get)
 
+	backgroundWorkers := make([]func(context.Context), 0)
 	if cfg.Service == appmeta.ServiceAPI {
-		if err := registerAPIRoutes(v1, cfg, dependencySet); err != nil {
+		apiWorkers, err := registerAPIRoutes(v1, cfg, dependencySet)
+		if err != nil {
 			_ = dependencySet.Close()
 			return nil, err
 		}
+		backgroundWorkers = append(backgroundWorkers, apiWorkers...)
 	}
 
 	server := newHTTPServer(cfg, router)
 
 	return &App{
-		config:       cfg,
-		dependencies: dependencySet,
-		server:       server,
+		config:            cfg,
+		dependencies:      dependencySet,
+		server:            server,
+		backgroundWorkers: backgroundWorkers,
 	}, nil
 }
 
@@ -91,7 +97,7 @@ func registerAPIRoutes(
 	v1 *gin.RouterGroup,
 	cfg config.Config,
 	dependencySet *dependencies.Container,
-) error {
+) ([]func(context.Context), error) {
 	tokenManager, err := authsupport.NewTokenManager(
 		"acmrank-api",
 		cfg.AccessTokenSecret,
@@ -100,11 +106,13 @@ func registerAPIRoutes(
 		cfg.RefreshTokenTTL,
 	)
 	if err != nil {
-		return fmt.Errorf("configure token manager: %w", err)
+		return nil, fmt.Errorf("configure token manager: %w", err)
 	}
 
 	userRepository := repository.NewUserRepository(dependencySet.Database())
 	platformAccountRepository := repository.NewPlatformAccountRepository(dependencySet.Database())
+	codeforcesSyncRepository := repository.NewCodeforcesSyncRepository(dependencySet.Database())
+	syncJobRepository := repository.NewSyncJobRepository(dependencySet.Database())
 	authStateRepository := repository.NewAuthStateRepository(dependencySet.Redis())
 	authService := service.NewAuthService(
 		userRepository,
@@ -118,6 +126,15 @@ func registerAPIRoutes(
 	userHandler := handlerv1.NewUserHandler()
 	platformAccountService := service.NewPlatformAccountService(platformAccountRepository)
 	platformAccountHandler := handlerv1.NewPlatformAccountHandler(platformAccountService)
+	codeforcesClient := integration.NewCodeforcesClient(cfg.CodeforcesAPIBaseURL, cfg.CodeforcesAPITimeout)
+	codeforcesService := service.NewCodeforcesSyncService(
+		platformAccountRepository,
+		codeforcesSyncRepository,
+		syncJobRepository,
+		codeforcesClient,
+	)
+	codeforcesHandler := handlerv1.NewCodeforcesHandler(codeforcesService)
+	codeforcesSyncRunner := service.NewCodeforcesSyncJobRunner(codeforcesService, 0)
 
 	authGroup := v1.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -128,12 +145,17 @@ func registerAPIRoutes(
 
 	usersGroup := v1.Group("/users")
 	usersGroup.GET("/me", authMiddleware.RequireAuthenticated(), userHandler.GetMe)
+	usersGroup.GET("/me/codeforces/problem-facts", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListProblemFacts)
+	usersGroup.GET("/me/codeforces/contest-ac-summaries", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListContestSummaries)
 
 	accountsGroup := v1.Group("/accounts")
 	accountsGroup.Use(authMiddleware.RequireAuthenticated())
 	accountsGroup.GET("", platformAccountHandler.ListMine)
 	accountsGroup.POST("", platformAccountHandler.Create)
 	accountsGroup.DELETE("/:id", platformAccountHandler.Delete)
+	accountsGroup.POST("/:id/sync", codeforcesHandler.Sync)
+	accountsGroup.GET("/:id/codeforces/profile", codeforcesHandler.GetLatestProfile)
+	accountsGroup.GET("/:id/codeforces/contest-histories", codeforcesHandler.ListContestHistories)
 
 	adminGroup := v1.Group("/admin")
 	adminGroup.Use(authMiddleware.RequireAuthenticated(), authMiddleware.RequireAdmin())
@@ -143,11 +165,21 @@ func registerAPIRoutes(
 	adminPlatformAccounts.POST("/:id/disable", platformAccountHandler.Disable)
 	adminPlatformAccounts.POST("/:id/reject", platformAccountHandler.Reject)
 
-	return nil
+	return []func(context.Context){
+		func(ctx context.Context) {
+			codeforcesSyncRunner.Start(ctx)
+		},
+	}, nil
 }
 
 func (a *App) Run(ctx context.Context) error {
 	errCh := make(chan error, 1)
+	workerCtx, cancelWorkers := context.WithCancel(ctx)
+	defer cancelWorkers()
+
+	for _, worker := range a.backgroundWorkers {
+		worker(workerCtx)
+	}
 
 	go func() {
 		if err := a.server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -160,8 +192,10 @@ func (a *App) Run(ctx context.Context) error {
 
 	select {
 	case err := <-errCh:
+		cancelWorkers()
 		return errors.Join(err, a.dependencies.Close())
 	case <-ctx.Done():
+		cancelWorkers()
 		shutdownCtx, cancel := context.WithTimeout(
 			context.Background(),
 			a.config.ShutdownTimeout,
