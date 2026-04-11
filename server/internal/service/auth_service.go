@@ -27,6 +27,8 @@ var (
 
 var usernamePattern = regexp.MustCompile(`^[A-Za-z0-9_]{3,32}$`)
 
+const maxPasswordBytes = 72
+
 type ValidationError struct {
 	Message string
 }
@@ -353,6 +355,8 @@ func normalizeRegisterInput(input RegisterInput) (RegisterInput, error) {
 		return RegisterInput{}, ValidationError{Message: "real_name must be 64 characters or fewer"}
 	case len(input.Password) < 8:
 		return RegisterInput{}, ValidationError{Message: "password must be at least 8 characters"}
+	case len(input.Password) > maxPasswordBytes:
+		return RegisterInput{}, ValidationError{Message: "password must be 72 bytes or fewer"}
 	}
 
 	return normalized, nil

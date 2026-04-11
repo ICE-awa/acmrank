@@ -146,9 +146,9 @@ func emailVerificationKey(token string) string {
 }
 
 func remainingTTL(expiresAt time.Time) time.Duration {
-	ttl := time.Until(expiresAt.UTC())
+	ttl := time.Until(expiresAt)
 	if ttl <= 0 {
-		return time.Second
+		return time.Millisecond
 	}
 
 	return ttl

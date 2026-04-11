@@ -126,3 +126,13 @@ func TestAuthStateRepositoryDeleteRefreshSessionUsesRefreshKey(t *testing.T) {
 		t.Fatalf("DeleteRefreshSession() keys = %v", redisClient.delKeys)
 	}
 }
+
+func TestRemainingTTLUsesMinimalDurationForExpiredValue(t *testing.T) {
+	t.Parallel()
+
+	ttl := remainingTTL(time.Now().Add(-time.Second))
+
+	if ttl != time.Millisecond {
+		t.Fatalf("remainingTTL() = %v, want %v", ttl, time.Millisecond)
+	}
+}

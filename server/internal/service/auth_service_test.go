@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -398,5 +399,23 @@ func TestAuthServiceAuthenticateRejectsInvalidAccessToken(t *testing.T) {
 	_, err := service.Authenticate(context.Background(), "bad-token")
 	if !errors.Is(err, ErrUnauthorized) {
 		t.Fatalf("Authenticate() error = %v, want %v", err, ErrUnauthorized)
+	}
+}
+
+func TestNormalizeRegisterInputRejectsPasswordLongerThanBcryptLimit(t *testing.T) {
+	t.Parallel()
+
+	_, err := normalizeRegisterInput(RegisterInput{
+		Username: "tourist",
+		Email:    "tourist@example.com",
+		RealName: "Tourist",
+		Password: strings.Repeat("a", maxPasswordBytes+1),
+	})
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("normalizeRegisterInput() error = %v, want validation error", err)
+	}
+
+	if err == nil || err.Error() != "password must be 72 bytes or fewer" {
+		t.Fatalf("normalizeRegisterInput() error = %v", err)
 	}
 }
