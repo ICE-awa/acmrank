@@ -8,6 +8,7 @@ import (
 	"net/http"
 
 	"github.com/ICE-awa/acmrank/server/internal/appmeta"
+	authsupport "github.com/ICE-awa/acmrank/server/internal/auth"
 	"github.com/ICE-awa/acmrank/server/internal/config"
 	"github.com/ICE-awa/acmrank/server/internal/dependencies"
 	handlerv1 "github.com/ICE-awa/acmrank/server/internal/handler/v1"
@@ -59,6 +60,13 @@ func NewApp(ctx context.Context, cfg config.Config) (*App, error) {
 	v1 := router.Group("/api/v1")
 	v1.GET("/health", healthHandler.Get)
 
+	if cfg.Service == appmeta.ServiceAPI {
+		if err := registerAPIRoutes(v1, cfg, dependencySet); err != nil {
+			_ = dependencySet.Close()
+			return nil, err
+		}
+	}
+
 	server := newHTTPServer(cfg, router)
 
 	return &App{
@@ -77,6 +85,48 @@ func newHTTPServer(cfg config.Config, handler http.Handler) *http.Server {
 		WriteTimeout:      cfg.WriteTimeout,
 		IdleTimeout:       cfg.IdleTimeout,
 	}
+}
+
+func registerAPIRoutes(
+	v1 *gin.RouterGroup,
+	cfg config.Config,
+	dependencySet *dependencies.Container,
+) error {
+	tokenManager, err := authsupport.NewTokenManager(
+		"acmrank-api",
+		cfg.AccessTokenSecret,
+		cfg.RefreshTokenSecret,
+		cfg.AccessTokenTTL,
+		cfg.RefreshTokenTTL,
+	)
+	if err != nil {
+		return fmt.Errorf("configure token manager: %w", err)
+	}
+
+	userRepository := repository.NewUserRepository(dependencySet.Database())
+	authStateRepository := repository.NewAuthStateRepository(dependencySet.Redis())
+	authService := service.NewAuthService(
+		userRepository,
+		authStateRepository,
+		authsupport.NewPasswordManager(0),
+		tokenManager,
+		cfg.EmailVerifyTTL,
+	)
+	authHandler := handlerv1.NewAuthHandler(authService, cfg.CookieSecure)
+	authMiddleware := handlerv1.NewAuthMiddleware(authService)
+	userHandler := handlerv1.NewUserHandler()
+
+	authGroup := v1.Group("/auth")
+	authGroup.POST("/register", authHandler.Register)
+	authGroup.POST("/verify-email", authHandler.VerifyEmail)
+	authGroup.POST("/login", authHandler.Login)
+	authGroup.POST("/refresh", authHandler.Refresh)
+	authGroup.POST("/logout", authHandler.Logout)
+
+	usersGroup := v1.Group("/users")
+	usersGroup.GET("/me", authMiddleware.RequireAuthenticated(), userHandler.GetMe)
+
+	return nil
 }
 
 func (a *App) Run(ctx context.Context) error {

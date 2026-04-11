@@ -102,7 +102,7 @@
 ## 9. 接口建议
 
 ### 9.1 初始化同步
-`POST /api/extension/atcoder/init`
+`POST /api/v1/extension/atcoder/init`
 
 请求：
 
@@ -128,7 +128,7 @@
 ```
 
 ### 9.2 上传 AC 批次
-`POST /api/extension/atcoder/upload`
+`POST /api/v1/extension/atcoder/upload`
 
 请求：
 
@@ -153,7 +153,7 @@
 ```
 
 ### 9.3 完成同步
-`POST /api/extension/atcoder/complete`
+`POST /api/v1/extension/atcoder/complete`
 
 请求：
 

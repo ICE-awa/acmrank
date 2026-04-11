@@ -51,3 +51,15 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
 - 执行全部迁移：`make migrate-up`
 - 回滚一版迁移：`make migrate-down`
 - 重置并重放迁移：`make migrate-reset`
+
+## 当前 API 鉴权骨架
+- 当前 `api` 服务已提供 `v1` 鉴权接口：
+  - `POST /api/v1/auth/register`
+  - `POST /api/v1/auth/verify-email`
+  - `POST /api/v1/auth/login`
+  - `POST /api/v1/auth/refresh`
+  - `POST /api/v1/auth/logout`
+  - `GET /api/v1/users/me`
+- 认证模型固定为 `JWT AT + RT + HttpOnly Cookie`。
+- 当前仓库尚未接入真实邮件投递能力，因此“邮箱验证基础流程”阶段会直接在注册响应里返回一次性的邮箱验证 token，便于本地联调与自动化测试。
+- 本地默认认证配置已写入 `.env.example`，生产环境必须覆盖默认密钥。
