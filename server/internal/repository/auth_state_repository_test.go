@@ -12,15 +12,13 @@ import (
 )
 
 type stubAuthStateRedis struct {
-	setKey      string
-	setValue    any
-	setTTL      time.Duration
-	getValue    string
-	getErr      error
-	getDelValue string
-	getDelErr   error
-	delKeys     []string
-	delErr      error
+	setKey   string
+	setValue any
+	setTTL   time.Duration
+	getValue string
+	getErr   error
+	delKeys  []string
+	delErr   error
 }
 
 func (s *stubAuthStateRedis) Set(
@@ -37,10 +35,6 @@ func (s *stubAuthStateRedis) Set(
 
 func (s *stubAuthStateRedis) Get(context.Context, string) *redis.StringCmd {
 	return redis.NewStringResult(s.getValue, s.getErr)
-}
-
-func (s *stubAuthStateRedis) GetDel(context.Context, string) *redis.StringCmd {
-	return redis.NewStringResult(s.getDelValue, s.getDelErr)
 }
 
 func (s *stubAuthStateRedis) Del(_ context.Context, keys ...string) *redis.IntCmd {
@@ -95,20 +89,20 @@ func TestAuthStateRepositoryReturnsMissingRefreshSession(t *testing.T) {
 	}
 }
 
-func TestAuthStateRepositoryConsumesEmailVerificationToken(t *testing.T) {
+func TestAuthStateRepositoryGetsEmailVerificationToken(t *testing.T) {
 	t.Parallel()
 
 	repository := NewAuthStateRepository(&stubAuthStateRedis{
-		getDelValue: "108",
+		getValue: "108",
 	})
 
-	userID, err := repository.ConsumeEmailVerification(context.Background(), "verify-token")
+	userID, err := repository.GetEmailVerification(context.Background(), "verify-token")
 	if err != nil {
-		t.Fatalf("ConsumeEmailVerification() error = %v", err)
+		t.Fatalf("GetEmailVerification() error = %v", err)
 	}
 
 	if userID != 108 {
-		t.Fatalf("ConsumeEmailVerification() user id = %d, want %d", userID, 108)
+		t.Fatalf("GetEmailVerification() user id = %d, want %d", userID, 108)
 	}
 }
 
@@ -124,6 +118,21 @@ func TestAuthStateRepositoryDeleteRefreshSessionUsesRefreshKey(t *testing.T) {
 
 	if len(redisClient.delKeys) != 1 || redisClient.delKeys[0] != "auth:refresh:session-7" {
 		t.Fatalf("DeleteRefreshSession() keys = %v", redisClient.delKeys)
+	}
+}
+
+func TestAuthStateRepositoryDeleteEmailVerificationUsesVerificationKey(t *testing.T) {
+	t.Parallel()
+
+	redisClient := &stubAuthStateRedis{}
+	repository := NewAuthStateRepository(redisClient)
+
+	if err := repository.DeleteEmailVerification(context.Background(), "verify-token"); err != nil {
+		t.Fatalf("DeleteEmailVerification() error = %v", err)
+	}
+
+	if len(redisClient.delKeys) != 1 || redisClient.delKeys[0] != "auth:verify-email:verify-token" {
+		t.Fatalf("DeleteEmailVerification() keys = %v", redisClient.delKeys)
 	}
 }
 

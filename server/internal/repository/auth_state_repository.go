@@ -20,7 +20,6 @@ var (
 type authStateRedis interface {
 	Set(ctx context.Context, key string, value any, expiration time.Duration) *redis.StatusCmd
 	Get(ctx context.Context, key string) *redis.StringCmd
-	GetDel(ctx context.Context, key string) *redis.StringCmd
 	Del(ctx context.Context, keys ...string) *redis.IntCmd
 }
 
@@ -116,11 +115,11 @@ func (r *AuthStateRepository) SaveEmailVerification(
 	return nil
 }
 
-func (r *AuthStateRepository) ConsumeEmailVerification(
+func (r *AuthStateRepository) GetEmailVerification(
 	ctx context.Context,
 	token string,
 ) (int64, error) {
-	value, err := r.client.GetDel(ctx, emailVerificationKey(token)).Result()
+	value, err := r.client.Get(ctx, emailVerificationKey(token)).Result()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
 			return 0, ErrEmailVerificationNotFound
@@ -135,6 +134,13 @@ func (r *AuthStateRepository) ConsumeEmailVerification(
 	}
 
 	return userID, nil
+}
+
+func (r *AuthStateRepository) DeleteEmailVerification(
+	ctx context.Context,
+	token string,
+) error {
+	return r.client.Del(ctx, emailVerificationKey(token)).Err()
 }
 
 func refreshSessionKey(sessionID string) string {

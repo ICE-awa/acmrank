@@ -39,7 +39,8 @@ type stubAuthStateStore struct {
 	getRefreshSessionFn     func(context.Context, string) (model.RefreshSession, error)
 	deleteRefreshSessionFn  func(context.Context, string) error
 	saveEmailVerificationFn func(context.Context, int64, model.EmailVerification) error
-	consumeEmailVerifyFn    func(context.Context, string) (int64, error)
+	getEmailVerifyFn        func(context.Context, string) (int64, error)
+	deleteEmailVerifyFn     func(context.Context, string) error
 }
 
 func (s stubAuthStateStore) SaveRefreshSession(ctx context.Context, session model.RefreshSession) error {
@@ -58,8 +59,12 @@ func (s stubAuthStateStore) SaveEmailVerification(ctx context.Context, userID in
 	return s.saveEmailVerificationFn(ctx, userID, verification)
 }
 
-func (s stubAuthStateStore) ConsumeEmailVerification(ctx context.Context, token string) (int64, error) {
-	return s.consumeEmailVerifyFn(ctx, token)
+func (s stubAuthStateStore) GetEmailVerification(ctx context.Context, token string) (int64, error) {
+	return s.getEmailVerifyFn(ctx, token)
+}
+
+func (s stubAuthStateStore) DeleteEmailVerification(ctx context.Context, token string) error {
+	return s.deleteEmailVerifyFn(ctx, token)
 }
 
 type stubPasswordManager struct {
@@ -128,7 +133,8 @@ func TestAuthServiceRegisterCreatesPendingUserAndVerificationToken(t *testing.T)
 
 				return nil
 			},
-			consumeEmailVerifyFn: func(context.Context, string) (int64, error) { return 0, nil },
+			getEmailVerifyFn:    func(context.Context, string) (int64, error) { return 0, nil },
+			deleteEmailVerifyFn: func(context.Context, string) error { return nil },
 		},
 		stubPasswordManager{
 			hashFn: func(password string) (string, error) {
@@ -187,7 +193,8 @@ func TestAuthServiceLoginRejectsPendingVerificationUser(t *testing.T) {
 			getRefreshSessionFn:     func(context.Context, string) (model.RefreshSession, error) { return model.RefreshSession{}, nil },
 			deleteRefreshSessionFn:  func(context.Context, string) error { return nil },
 			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error { return nil },
-			consumeEmailVerifyFn:    func(context.Context, string) (int64, error) { return 0, nil },
+			getEmailVerifyFn:        func(context.Context, string) (int64, error) { return 0, nil },
+			deleteEmailVerifyFn:     func(context.Context, string) error { return nil },
 		},
 		stubPasswordManager{
 			hashFn: func(string) (string, error) { return "", nil },
@@ -249,7 +256,8 @@ func TestAuthServiceRefreshRotatesSession(t *testing.T) {
 				return nil
 			},
 			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error { return nil },
-			consumeEmailVerifyFn:    func(context.Context, string) (int64, error) { return 0, nil },
+			getEmailVerifyFn:        func(context.Context, string) (int64, error) { return 0, nil },
+			deleteEmailVerifyFn:     func(context.Context, string) error { return nil },
 		},
 		stubPasswordManager{
 			hashFn:    func(string) (string, error) { return "", nil },
@@ -302,6 +310,81 @@ func TestAuthServiceRefreshRotatesSession(t *testing.T) {
 	}
 }
 
+func TestAuthServiceRefreshIgnoresStaleSessionDeletionFailure(t *testing.T) {
+	t.Parallel()
+
+	service := NewAuthService(
+		stubAuthUserStore{
+			createFn: func(context.Context, repository.CreateUserParams) (model.User, error) {
+				return model.User{}, nil
+			},
+			getForLoginFn: func(context.Context, string) (model.User, string, error) {
+				return model.User{}, "", nil
+			},
+			getByIDFn: func(context.Context, int64) (model.User, error) {
+				return model.User{
+					ID:       42,
+					Username: "neal",
+					Status:   model.UserStatusActive,
+				}, nil
+			},
+			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) {
+				return model.User{}, nil
+			},
+		},
+		stubAuthStateStore{
+			saveRefreshSessionFn: func(context.Context, model.RefreshSession) error { return nil },
+			getRefreshSessionFn: func(context.Context, string) (model.RefreshSession, error) {
+				return model.RefreshSession{
+					SessionID: "old-session",
+					UserID:    42,
+					TokenID:   "old-token",
+				}, nil
+			},
+			deleteRefreshSessionFn:  func(context.Context, string) error { return errors.New("redis unavailable") },
+			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error { return nil },
+			getEmailVerifyFn:        func(context.Context, string) (int64, error) { return 0, nil },
+			deleteEmailVerifyFn:     func(context.Context, string) error { return nil },
+		},
+		stubPasswordManager{
+			hashFn:    func(string) (string, error) { return "", nil },
+			compareFn: func(string, string) error { return nil },
+		},
+		stubTokenManager{
+			issueSessionFn: func(model.User) (model.IssuedSession, error) {
+				return model.IssuedSession{
+					AccessToken:           "new-access",
+					RefreshToken:          "new-refresh",
+					AccessTokenExpiresAt:  time.Now().UTC().Add(15 * time.Minute),
+					RefreshTokenExpiresAt: time.Now().UTC().Add(24 * time.Hour),
+					SessionID:             "new-session",
+					RefreshTokenID:        "new-token",
+				}, nil
+			},
+			parseAccessTokenFn: func(string) (model.AccessTokenSubject, error) {
+				return model.AccessTokenSubject{}, nil
+			},
+			parseRefreshFn: func(string) (model.RefreshTokenSubject, error) {
+				return model.RefreshTokenSubject{
+					UserID:    42,
+					SessionID: "old-session",
+					TokenID:   "old-token",
+				}, nil
+			},
+		},
+		24*time.Hour,
+	)
+
+	result, err := service.Refresh(context.Background(), "refresh-token")
+	if err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+
+	if result.Session.SessionID != "new-session" {
+		t.Fatalf("Refresh() session id = %q, want %q", result.Session.SessionID, "new-session")
+	}
+}
+
 func TestAuthServiceVerifyEmailConsumesToken(t *testing.T) {
 	t.Parallel()
 
@@ -337,12 +420,13 @@ func TestAuthServiceVerifyEmailConsumesToken(t *testing.T) {
 			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error {
 				return nil
 			},
-			consumeEmailVerifyFn: func(_ context.Context, token string) (int64, error) {
+			getEmailVerifyFn: func(_ context.Context, token string) (int64, error) {
 				if token != "verify-token" {
-					t.Fatalf("ConsumeEmailVerification() token = %q", token)
+					t.Fatalf("GetEmailVerification() token = %q", token)
 				}
 				return 9, nil
 			},
+			deleteEmailVerifyFn: func(context.Context, string) error { return nil },
 		},
 		stubPasswordManager{
 			hashFn:    func(string) (string, error) { return "", nil },
@@ -363,6 +447,54 @@ func TestAuthServiceVerifyEmailConsumesToken(t *testing.T) {
 	}
 }
 
+func TestAuthServiceVerifyEmailDoesNotDeleteTokenWhenUserUpdateFails(t *testing.T) {
+	t.Parallel()
+
+	deleted := false
+	service := NewAuthService(
+		stubAuthUserStore{
+			createFn: func(context.Context, repository.CreateUserParams) (model.User, error) {
+				return model.User{}, nil
+			},
+			getForLoginFn: func(context.Context, string) (model.User, string, error) {
+				return model.User{}, "", nil
+			},
+			getByIDFn: func(context.Context, int64) (model.User, error) {
+				return model.User{}, nil
+			},
+			markEmailVerifiedFn: func(context.Context, int64, time.Time) (model.User, error) {
+				return model.User{}, errors.New("database unavailable")
+			},
+		},
+		stubAuthStateStore{
+			saveRefreshSessionFn:    func(context.Context, model.RefreshSession) error { return nil },
+			getRefreshSessionFn:     func(context.Context, string) (model.RefreshSession, error) { return model.RefreshSession{}, nil },
+			deleteRefreshSessionFn:  func(context.Context, string) error { return nil },
+			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error { return nil },
+			getEmailVerifyFn:        func(context.Context, string) (int64, error) { return 9, nil },
+			deleteEmailVerifyFn: func(context.Context, string) error {
+				deleted = true
+				return nil
+			},
+		},
+		stubPasswordManager{
+			hashFn:    func(string) (string, error) { return "", nil },
+			compareFn: func(string, string) error { return nil },
+		},
+		stubTokenManager{},
+		24*time.Hour,
+	)
+
+	_, err := service.VerifyEmail(context.Background(), "verify-token")
+	if err == nil {
+		t.Fatal("VerifyEmail() expected error when user update fails")
+	}
+
+	if deleted {
+		t.Fatal("VerifyEmail() should not delete token when user update fails")
+	}
+}
+
 func TestAuthServiceAuthenticateRejectsInvalidAccessToken(t *testing.T) {
 	t.Parallel()
 
@@ -378,7 +510,8 @@ func TestAuthServiceAuthenticateRejectsInvalidAccessToken(t *testing.T) {
 			getRefreshSessionFn:     func(context.Context, string) (model.RefreshSession, error) { return model.RefreshSession{}, nil },
 			deleteRefreshSessionFn:  func(context.Context, string) error { return nil },
 			saveEmailVerificationFn: func(context.Context, int64, model.EmailVerification) error { return nil },
-			consumeEmailVerifyFn:    func(context.Context, string) (int64, error) { return 0, nil },
+			getEmailVerifyFn:        func(context.Context, string) (int64, error) { return 0, nil },
+			deleteEmailVerifyFn:     func(context.Context, string) error { return nil },
 		},
 		stubPasswordManager{
 			hashFn:    func(string) (string, error) { return "", nil },

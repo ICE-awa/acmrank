@@ -217,6 +217,15 @@ func TestAuthHandlerLogoutClearsCookiesEvenWhenServerSideLogoutFails(t *testing.
 		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusInternalServerError)
 	}
 
+	var response map[string]any
+	if err := json.Unmarshal(rec.Body.Bytes(), &response); err != nil {
+		t.Fatalf("json.Unmarshal() error = %v", err)
+	}
+
+	if response["error"] != "internal server error" {
+		t.Fatalf("error response = %v, want %q", response["error"], "internal server error")
+	}
+
 	cookies := rec.Result().Cookies()
 	if len(cookies) != 2 {
 		t.Fatalf("cookies len = %d, want 2", len(cookies))

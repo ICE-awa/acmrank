@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log"
 	"net/mail"
 	"regexp"
 	"strings"
@@ -53,7 +54,8 @@ type AuthStateStore interface {
 	GetRefreshSession(ctx context.Context, sessionID string) (model.RefreshSession, error)
 	DeleteRefreshSession(ctx context.Context, sessionID string) error
 	SaveEmailVerification(ctx context.Context, userID int64, verification model.EmailVerification) error
-	ConsumeEmailVerification(ctx context.Context, token string) (int64, error)
+	GetEmailVerification(ctx context.Context, token string) (int64, error)
+	DeleteEmailVerification(ctx context.Context, token string) error
 }
 
 type PasswordManager interface {
@@ -166,13 +168,13 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) (model.User
 		return model.User{}, ValidationError{Message: "verification token is required"}
 	}
 
-	userID, err := s.stateStore.ConsumeEmailVerification(ctx, trimmedToken)
+	userID, err := s.stateStore.GetEmailVerification(ctx, trimmedToken)
 	if err != nil {
 		if errors.Is(err, repository.ErrEmailVerificationNotFound) {
 			return model.User{}, ErrInvalidEmailVerificationTok
 		}
 
-		return model.User{}, fmt.Errorf("consume email verification: %w", err)
+		return model.User{}, fmt.Errorf("load email verification: %w", err)
 	}
 
 	user, err := s.userStore.MarkEmailVerified(ctx, userID, s.now().UTC())
@@ -182,6 +184,10 @@ func (s *AuthService) VerifyEmail(ctx context.Context, token string) (model.User
 		}
 
 		return model.User{}, fmt.Errorf("mark email verified: %w", err)
+	}
+
+	if err := s.stateStore.DeleteEmailVerification(ctx, trimmedToken); err != nil {
+		log.Printf("delete email verification token %q: %v", trimmedToken, err)
 	}
 
 	return user, nil
@@ -259,7 +265,7 @@ func (s *AuthService) Refresh(ctx context.Context, refreshToken string) (Session
 	}
 
 	if err := s.stateStore.DeleteRefreshSession(ctx, subject.SessionID); err != nil {
-		return SessionResult{}, fmt.Errorf("delete stale refresh session: %w", err)
+		log.Printf("delete stale refresh session %q: %v", subject.SessionID, err)
 	}
 
 	return result, nil

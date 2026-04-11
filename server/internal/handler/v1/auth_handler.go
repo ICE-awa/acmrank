@@ -3,6 +3,7 @@ package v1
 import (
 	"context"
 	"errors"
+	"log"
 	"net/http"
 	"time"
 
@@ -113,7 +114,7 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	h.clearSessionCookies(c)
 
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		writeAuthError(c, err)
 		return
 	}
 
@@ -189,6 +190,7 @@ func toUserResponse(user model.User) dtov1.UserResponse {
 
 func writeAuthError(c *gin.Context, err error) {
 	statusCode := http.StatusInternalServerError
+	message := err.Error()
 	switch {
 	case errors.Is(err, service.ErrValidation):
 		statusCode = http.StatusBadRequest
@@ -202,7 +204,12 @@ func writeAuthError(c *gin.Context, err error) {
 		statusCode = http.StatusBadRequest
 	}
 
-	c.JSON(statusCode, gin.H{"error": err.Error()})
+	if statusCode == http.StatusInternalServerError {
+		log.Printf("auth handler error: %v", err)
+		message = "internal server error"
+	}
+
+	c.JSON(statusCode, gin.H{"error": message})
 }
 
 func readCookie(c *gin.Context, name string) string {
