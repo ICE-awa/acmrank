@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -178,6 +179,50 @@ func TestAuthHandlerLogoutClearsCookies(t *testing.T) {
 	}
 
 	for _, cookie := range rec.Result().Cookies() {
+		if cookie.MaxAge != -1 {
+			t.Fatalf("cookie %q MaxAge = %d, want -1", cookie.Name, cookie.MaxAge)
+		}
+	}
+}
+
+func TestAuthHandlerLogoutClearsCookiesEvenWhenServerSideLogoutFails(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	handler := NewAuthHandler(stubAuthHTTPService{
+		registerFn: func(context.Context, service.RegisterInput) (service.RegisterResult, error) {
+			return service.RegisterResult{}, nil
+		},
+		verifyEmailFn: func(context.Context, string) (model.User, error) { return model.User{}, nil },
+		loginFn: func(context.Context, service.LoginInput) (service.SessionResult, error) {
+			return service.SessionResult{}, nil
+		},
+		refreshFn: func(context.Context, string) (service.SessionResult, error) { return service.SessionResult{}, nil },
+		logoutFn: func(context.Context, string) error {
+			return errors.New("redis unavailable")
+		},
+		authenticateFn: func(context.Context, string) (model.User, error) {
+			return model.User{}, nil
+		},
+	}, false)
+	router.POST("/api/v1/auth/logout", handler.Logout)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/logout", nil)
+	req.AddCookie(&http.Cookie{Name: "acmrank_at", Value: "access-token"})
+	req.AddCookie(&http.Cookie{Name: "acmrank_rt", Value: "refresh-token"})
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusInternalServerError)
+	}
+
+	cookies := rec.Result().Cookies()
+	if len(cookies) != 2 {
+		t.Fatalf("cookies len = %d, want 2", len(cookies))
+	}
+
+	for _, cookie := range cookies {
 		if cookie.MaxAge != -1 {
 			t.Fatalf("cookie %q MaxAge = %d, want -1", cookie.Name, cookie.MaxAge)
 		}

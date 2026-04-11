@@ -109,12 +109,14 @@ func (h *AuthHandler) Refresh(c *gin.Context) {
 }
 
 func (h *AuthHandler) Logout(c *gin.Context) {
-	if err := h.service.Logout(c.Request.Context(), readCookie(c, authsupport.RefreshTokenCookieName)); err != nil {
+	err := h.service.Logout(c.Request.Context(), readCookie(c, authsupport.RefreshTokenCookieName))
+	h.clearSessionCookies(c)
+
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	h.clearSessionCookies(c)
 	c.Status(http.StatusNoContent)
 }
 
