@@ -72,6 +72,30 @@ func TestAwardHandlerSyncReturnsAcceptedJob(t *testing.T) {
 	}
 }
 
+func TestAwardHandlerSyncReturnsBadRequestForValidationError(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.Use(withAuthenticatedUser(model.User{ID: 7, Username: "tourist"}))
+	handler := NewAwardHandler(stubAwardHTTPService{
+		enqueueSyncFn: func(context.Context, int64) (model.SyncJob, error) {
+			return model.SyncJob{}, service.ValidationError{Message: "real_name is required before syncing awards"}
+		},
+		listAwardsFn: func(context.Context, int64, service.ListAwardRecordsInput) ([]model.AwardRecord, error) {
+			return nil, nil
+		},
+	})
+	router.POST("/api/v1/users/me/awards/sync", handler.Sync)
+
+	rec := httptest.NewRecorder()
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/users/me/awards/sync", nil)
+	router.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("ServeHTTP() status = %d, want %d", rec.Code, http.StatusBadRequest)
+	}
+}
+
 func TestAwardHandlerListMineAppliesPagination(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 

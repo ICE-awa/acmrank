@@ -38,6 +38,10 @@ func (e ValidationError) Error() string {
 	return e.Message
 }
 
+func (e ValidationError) Is(target error) bool {
+	return target == ErrValidation
+}
+
 func (e ValidationError) Unwrap() error {
 	return ErrValidation
 }

@@ -6,6 +6,8 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -206,6 +208,71 @@ func TestICPCAwardClientFetchAwardsUsesInMemoryCache(t *testing.T) {
 
 	if requestCount != 2 {
 		t.Fatalf("requestCount after cache expiry = %d, want 2", requestCount)
+	}
+}
+
+func TestICPCAwardClientFetchAwardsSharesConcurrentFetch(t *testing.T) {
+	t.Parallel()
+
+	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	now := time.Unix(1_701_200_600, 0).UTC()
+	client.now = func() time.Time { return now }
+
+	var requestCount atomic.Int32
+	release := make(chan struct{})
+	entered := make(chan struct{}, 1)
+	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		requestCount.Add(1)
+		select {
+		case entered <- struct{}{}:
+		default:
+		}
+		<-release
+
+		return jsonHTTPResponse(http.StatusOK, `{
+  "records": [
+    {
+      "contest_name": "ICPC Asia Regional 2025",
+      "award_name": "Gold Medal",
+      "award_date": "2025-11-02",
+      "members": ["Alice"]
+    }
+  ]
+}`), nil
+	})
+
+	var wg sync.WaitGroup
+	errCh := make(chan error, 2)
+	for range 2 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			records, err := client.FetchAwards(context.Background())
+			if err != nil {
+				errCh <- err
+				return
+			}
+			if len(records) != 1 {
+				errCh <- errors.New("unexpected record count")
+			}
+		}()
+	}
+
+	<-entered
+	time.Sleep(50 * time.Millisecond)
+	if got := requestCount.Load(); got != 1 {
+		t.Fatalf("requestCount while fetch in flight = %d, want 1", got)
+	}
+
+	close(release)
+	wg.Wait()
+	close(errCh)
+
+	for err := range errCh {
+		if err != nil {
+			t.Fatalf("FetchAwards() concurrent error = %v", err)
+		}
 	}
 }
 

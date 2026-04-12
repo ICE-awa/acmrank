@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/sync/singleflight"
 )
 
 var ErrICPCAwardsAPI = errors.New("icpc awards api error")
@@ -23,9 +25,10 @@ type ICPCAwardClient struct {
 	httpClient *http.Client
 	now        func() time.Time
 
-	mu             sync.Mutex
+	mu             sync.RWMutex
 	cachedRecords  []ICPCAwardFeedRecord
 	cacheExpiresAt time.Time
+	fetchGroup     singleflight.Group
 }
 
 type ICPCAwardFeedRecord struct {
@@ -69,22 +72,29 @@ func (c *ICPCAwardClient) FetchAwards(
 		return cloneICPCAwardFeedRecords(records), nil
 	}
 
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	value, err, _ := c.fetchGroup.Do("awards", func() (any, error) {
+		if records, ok := c.loadCachedAwards(); ok {
+			return records, nil
+		}
 
-	if c.cacheIsFreshLocked() {
-		return cloneICPCAwardFeedRecords(c.cachedRecords), nil
-	}
+		records, err := c.fetchAwards(context.WithoutCancel(ctx))
+		if err != nil {
+			return nil, err
+		}
 
-	records, err := c.fetchAwards(ctx)
+		c.storeCachedAwards(records)
+		return records, nil
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	c.cachedRecords = cloneICPCAwardFeedRecords(records)
-	c.cacheExpiresAt = c.now().UTC().Add(icpcAwardCacheTTL)
+	records, ok := value.([]ICPCAwardFeedRecord)
+	if !ok {
+		return nil, fmt.Errorf("%w: invalid awards fetch result type", ErrICPCAwardsAPI)
+	}
 
-	return cloneICPCAwardFeedRecords(c.cachedRecords), nil
+	return cloneICPCAwardFeedRecords(records), nil
 }
 
 func (c *ICPCAwardClient) fetchAwards(
@@ -144,14 +154,22 @@ func (c *ICPCAwardClient) fetchAwards(
 }
 
 func (c *ICPCAwardClient) loadCachedAwards() ([]ICPCAwardFeedRecord, bool) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
+	c.mu.RLock()
+	defer c.mu.RUnlock()
 
 	if !c.cacheIsFreshLocked() {
 		return nil, false
 	}
 
-	return cloneICPCAwardFeedRecords(c.cachedRecords), true
+	return c.cachedRecords, true
+}
+
+func (c *ICPCAwardClient) storeCachedAwards(records []ICPCAwardFeedRecord) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.cachedRecords = records
+	c.cacheExpiresAt = c.now().UTC().Add(icpcAwardCacheTTL)
 }
 
 func (c *ICPCAwardClient) cacheIsFreshLocked() bool {
