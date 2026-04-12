@@ -184,6 +184,31 @@
 - 允许人工修正
 - 只要求一条稳定链路
 
+### 8.3 当前稳定链路
+- 当前 `ICPC` 奖项链路采用“运营维护的 JSON feed URL”。
+- 服务端拉取整份奖项 feed 后，按 `users.real_name` 与 `members[]` 做归一化匹配。
+- 归一化匹配会忽略大小写、空白和常见标点差异，降低姓名格式差异带来的漏匹配。
+
+### 8.4 当前 feed 约定
+- 支持两种 JSON 形态：
+  - 顶层对象：`{"records": [...]}`
+  - 顶层数组：`[...]`
+- 单条记录至少包含：
+  - `contest_name`
+  - `award_name`
+  - `award_date`
+  - `members`
+- 可选字段包括：
+  - `rank_text`
+  - `source_url`
+  - `notes`
+
+### 8.5 当前落库行为
+- 自动同步只覆盖 `is_manual = false` 的 `award_records`。
+- 已存在的人工修正记录不会被自动同步删除或覆盖。
+- 同一用户同一奖项的幂等键仍然是：
+  - `site_user_id + platform + contest_name + award_name + award_date`
+
 ## 9. 归并规则
 
 ### 9.1 平台内去重

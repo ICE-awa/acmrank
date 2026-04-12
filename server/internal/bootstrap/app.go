@@ -113,6 +113,7 @@ func registerAPIRoutes(
 	platformAccountRepository := repository.NewPlatformAccountRepository(dependencySet.Database())
 	codeforcesSyncRepository := repository.NewCodeforcesSyncRepository(dependencySet.Database())
 	luoguSyncRepository := repository.NewLuoguSyncRepository(dependencySet.Database())
+	awardRepository := repository.NewAwardRepository(dependencySet.Database())
 	syncJobRepository := repository.NewSyncJobRepository(dependencySet.Database())
 	authStateRepository := repository.NewAuthStateRepository(dependencySet.Redis())
 	authService := service.NewAuthService(
@@ -129,6 +130,7 @@ func registerAPIRoutes(
 	platformAccountHandler := handlerv1.NewPlatformAccountHandler(platformAccountService)
 	codeforcesClient := integration.NewCodeforcesClient(cfg.CodeforcesAPIBaseURL, cfg.CodeforcesAPITimeout)
 	luoguClient := integration.NewLuoguClient(cfg.LuoguBaseURL, cfg.LuoguTimeout)
+	icpcAwardClient := integration.NewICPCAwardClient(cfg.ICPCAwardsFeedURL, cfg.ICPCTimeout)
 	codeforcesService := service.NewCodeforcesSyncService(
 		platformAccountRepository,
 		codeforcesSyncRepository,
@@ -141,6 +143,12 @@ func registerAPIRoutes(
 		syncJobRepository,
 		luoguClient,
 	)
+	awardService := service.NewICPCAwardService(
+		userRepository,
+		awardRepository,
+		syncJobRepository,
+		icpcAwardClient,
+	)
 	platformSyncService := service.NewPlatformSyncService(
 		platformAccountRepository,
 		codeforcesService,
@@ -149,8 +157,10 @@ func registerAPIRoutes(
 	platformSyncHandler := handlerv1.NewPlatformSyncHandler(platformSyncService)
 	codeforcesHandler := handlerv1.NewCodeforcesHandler(codeforcesService)
 	luoguHandler := handlerv1.NewLuoguHandler(luoguService)
+	awardHandler := handlerv1.NewAwardHandler(awardService)
 	codeforcesSyncRunner := service.NewCodeforcesSyncJobRunner(codeforcesService, 0)
 	luoguSyncRunner := service.NewLuoguSyncJobRunner(luoguService, 0)
+	icpcAwardSyncRunner := service.NewICPCAwardSyncJobRunner(awardService, 0)
 
 	authGroup := v1.Group("/auth")
 	authGroup.POST("/register", authHandler.Register)
@@ -161,6 +171,8 @@ func registerAPIRoutes(
 
 	usersGroup := v1.Group("/users")
 	usersGroup.GET("/me", authMiddleware.RequireAuthenticated(), userHandler.GetMe)
+	usersGroup.GET("/me/awards", authMiddleware.RequireAuthenticated(), awardHandler.ListMine)
+	usersGroup.POST("/me/awards/sync", authMiddleware.RequireAuthenticated(), awardHandler.Sync)
 	usersGroup.GET("/me/codeforces/problem-facts", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListProblemFacts)
 	usersGroup.GET("/me/codeforces/contest-ac-summaries", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListContestSummaries)
 	usersGroup.GET("/me/luogu/problem-facts", authMiddleware.RequireAuthenticated(), luoguHandler.ListProblemFacts)
@@ -189,6 +201,9 @@ func registerAPIRoutes(
 		},
 		func(ctx context.Context) {
 			luoguSyncRunner.Start(ctx)
+		},
+		func(ctx context.Context) {
+			icpcAwardSyncRunner.Start(ctx)
 		},
 	}, nil
 }

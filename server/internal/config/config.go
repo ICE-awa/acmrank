@@ -35,6 +35,8 @@ type Config struct {
 	CodeforcesAPITimeout time.Duration
 	LuoguBaseURL         string
 	LuoguTimeout         time.Duration
+	ICPCAwardsFeedURL    string
+	ICPCTimeout          time.Duration
 }
 
 func Load(service appmeta.ServiceName) (Config, error) {
@@ -97,6 +99,11 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		return Config{}, err
 	}
 
+	icpcTimeout, err := durationValue("ACMRANK_ICPC_TIMEOUT", 10*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cookieSecure, err := boolValue("ACMRANK_AUTH_COOKIE_SECURE", false)
 	if err != nil {
 		return Config{}, err
@@ -127,6 +134,8 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		CodeforcesAPITimeout: codeforcesAPITimeout,
 		LuoguBaseURL:         stringValue("ACMRANK_LUOGU_BASE_URL", "https://www.luogu.com.cn"),
 		LuoguTimeout:         luoguTimeout,
+		ICPCAwardsFeedURL:    stringValue("ACMRANK_ICPC_AWARDS_FEED_URL", ""),
+		ICPCTimeout:          icpcTimeout,
 	}, nil
 }
 

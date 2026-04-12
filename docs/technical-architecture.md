@@ -206,6 +206,7 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - 只维护一条稳定链路。
 - 只同步奖项历史，不进入刷题统计。
 - 允许人工修正。
+- 当前链路采用运营维护的奖项 JSON feed，由服务端按 `real_name` 匹配成员名单后落库。
 
 ## 8. AtCoder 最后兜底链路
 
@@ -238,6 +239,8 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - `POST /api/v1/auth/refresh`
 - `POST /api/v1/auth/logout`
 - `GET /api/v1/users/me`
+- `GET /api/v1/users/me/awards`
+- `POST /api/v1/users/me/awards/sync`
 - `GET /api/v1/users/me/codeforces/problem-facts`
 - `GET /api/v1/users/me/codeforces/contest-ac-summaries`
 - `GET /api/v1/users/me/luogu/problem-facts`

@@ -92,7 +92,7 @@ func TestSyncJobRepositoryEnqueueReturnsExistingActiveJob(t *testing.T) {
 
 	job, err := repository.Enqueue(context.Background(), EnqueueSyncJobParams{
 		SiteUserID:        7,
-		PlatformAccountID: 8,
+		PlatformAccountID: &accountID,
 		Platform:          "codeforces",
 		JobType:           model.SyncJobTypeCodeforces,
 		ScheduledAt:       now,

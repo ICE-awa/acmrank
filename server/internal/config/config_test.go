@@ -76,6 +76,14 @@ func TestLoadDefaultsForAPI(t *testing.T) {
 	if cfg.LuoguTimeout != 10*time.Second {
 		t.Fatalf("Load() LuoguTimeout = %v, want %v", cfg.LuoguTimeout, 10*time.Second)
 	}
+
+	if cfg.ICPCAwardsFeedURL != "" {
+		t.Fatalf("Load() ICPCAwardsFeedURL = %q, want empty string", cfg.ICPCAwardsFeedURL)
+	}
+
+	if cfg.ICPCTimeout != 10*time.Second {
+		t.Fatalf("Load() ICPCTimeout = %v, want %v", cfg.ICPCTimeout, 10*time.Second)
+	}
 }
 
 func TestLoadHonorsOverrides(t *testing.T) {
@@ -95,6 +103,8 @@ func TestLoadHonorsOverrides(t *testing.T) {
 	t.Setenv("ACMRANK_CODEFORCES_API_TIMEOUT", "14s")
 	t.Setenv("ACMRANK_LUOGU_BASE_URL", "https://luogu.example.test")
 	t.Setenv("ACMRANK_LUOGU_TIMEOUT", "11s")
+	t.Setenv("ACMRANK_ICPC_AWARDS_FEED_URL", "https://icpc.example.test/awards.json")
+	t.Setenv("ACMRANK_ICPC_TIMEOUT", "9s")
 
 	cfg, err := Load(appmeta.ServiceScheduler)
 	if err != nil {
@@ -163,6 +173,14 @@ func TestLoadHonorsOverrides(t *testing.T) {
 
 	if cfg.LuoguTimeout != 11*time.Second {
 		t.Fatalf("Load() LuoguTimeout = %v, want %v", cfg.LuoguTimeout, 11*time.Second)
+	}
+
+	if cfg.ICPCAwardsFeedURL != "https://icpc.example.test/awards.json" {
+		t.Fatalf("Load() ICPCAwardsFeedURL = %q, want %q", cfg.ICPCAwardsFeedURL, "https://icpc.example.test/awards.json")
+	}
+
+	if cfg.ICPCTimeout != 9*time.Second {
+		t.Fatalf("Load() ICPCTimeout = %v, want %v", cfg.ICPCTimeout, 9*time.Second)
 	}
 }
 

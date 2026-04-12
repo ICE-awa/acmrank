@@ -412,7 +412,7 @@ func TestCodeforcesSyncServiceEnqueueSyncCreatesQueuedJob(t *testing.T) {
 		},
 		stubCodeforcesSyncJobStore{
 			enqueueFn: func(_ context.Context, params repository.EnqueueSyncJobParams) (model.SyncJob, error) {
-				if params.SiteUserID != 7 || params.PlatformAccountID != 8 || params.JobType != model.SyncJobTypeCodeforces {
+				if params.SiteUserID != 7 || params.PlatformAccountID == nil || *params.PlatformAccountID != 8 || params.JobType != model.SyncJobTypeCodeforces {
 					t.Fatalf("Enqueue() params = %+v", params)
 				}
 
