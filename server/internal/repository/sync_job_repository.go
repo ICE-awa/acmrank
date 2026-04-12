@@ -87,11 +87,13 @@ func (r *SyncJobRepository) Enqueue(
        created_at, updated_at
 FROM sync_jobs
 WHERE platform_account_id IS NOT DISTINCT FROM $1
-  AND job_type = $2
+  AND site_user_id = $2
+  AND job_type = $3
   AND status IN ('queued', 'running')
 ORDER BY created_at DESC, id DESC
 LIMIT 1`,
 			platformAccountID,
+			params.SiteUserID,
 			params.JobType,
 		),
 	)

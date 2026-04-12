@@ -285,6 +285,7 @@ func normalizePersonName(input string) string {
 	}
 
 	var builder strings.Builder
+	builder.Grow(len(normalized))
 	for _, r := range normalized {
 		switch {
 		case unicode.IsSpace(r), unicode.IsPunct(r), unicode.IsSymbol(r):
