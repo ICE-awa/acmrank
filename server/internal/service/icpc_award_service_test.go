@@ -229,6 +229,49 @@ func TestICPCAwardServiceEnqueueSyncUsesUserLevelJob(t *testing.T) {
 	}
 }
 
+func TestICPCAwardServiceEnqueueSyncRequiresRealName(t *testing.T) {
+	t.Parallel()
+
+	service := NewICPCAwardService(
+		stubICPCAwardUserStore{
+			getByIDFn: func(context.Context, int64) (model.User, error) {
+				return model.User{
+					ID:       7,
+					RealName: "",
+					Status:   model.UserStatusActive,
+				}, nil
+			},
+		},
+		stubICPCAwardStore{
+			replaceFn: func(context.Context, repository.ReplaceAwardRecordsParams) error { return nil },
+			listFn: func(context.Context, int64, repository.ListAwardRecordsFilter) ([]model.AwardRecord, error) {
+				return nil, nil
+			},
+		},
+		stubICPCAwardJobStore{
+			enqueueFn: func(context.Context, repository.EnqueueSyncJobParams) (model.SyncJob, error) {
+				t.Fatal("Enqueue() should not be called when real_name is missing")
+				return model.SyncJob{}, nil
+			},
+			claimNextFn: func(context.Context, model.SyncJobType, time.Time) (model.SyncJob, error) {
+				return model.SyncJob{}, repository.ErrNoPendingSyncJob
+			},
+			markSuccessFn: func(context.Context, int64, time.Time) error { return nil },
+			markFailedFn:  func(context.Context, int64, string, time.Time) error { return nil },
+		},
+		stubICPCAwardClient{
+			fetchAwardsFn: func(context.Context) ([]integration.ICPCAwardFeedRecord, error) {
+				return nil, nil
+			},
+		},
+	)
+
+	_, err := service.EnqueueSync(context.Background(), 7)
+	if !errors.Is(err, ErrValidation) {
+		t.Fatalf("EnqueueSync() error = %v, want %v", err, ErrValidation)
+	}
+}
+
 func TestICPCAwardServiceProcessNextQueuedSyncClaimsICPCJobs(t *testing.T) {
 	t.Parallel()
 

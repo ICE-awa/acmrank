@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/ICE-awa/acmrank/server/internal/integration"
 	"github.com/ICE-awa/acmrank/server/internal/model"
+	"github.com/ICE-awa/acmrank/server/internal/nameutil"
 	"github.com/ICE-awa/acmrank/server/internal/repository"
 )
 
@@ -77,7 +77,7 @@ func (s *ICPCAwardService) EnqueueSync(
 	ctx context.Context,
 	siteUserID int64,
 ) (model.SyncJob, error) {
-	if _, err := s.loadUser(ctx, siteUserID); err != nil {
+	if _, err := s.loadSyncableUser(ctx, siteUserID); err != nil {
 		return model.SyncJob{}, err
 	}
 
@@ -129,13 +129,9 @@ func (s *ICPCAwardService) Sync(
 	ctx context.Context,
 	siteUserID int64,
 ) (ICPCAwardSyncResult, error) {
-	user, err := s.loadUser(ctx, siteUserID)
+	user, err := s.loadSyncableUser(ctx, siteUserID)
 	if err != nil {
 		return ICPCAwardSyncResult{}, err
-	}
-
-	if strings.TrimSpace(user.RealName) == "" {
-		return ICPCAwardSyncResult{}, ValidationError{Message: "real_name is required before syncing awards"}
 	}
 
 	records, err := s.client.FetchAwards(ctx)
@@ -201,6 +197,22 @@ func (s *ICPCAwardService) loadUser(
 	return user, nil
 }
 
+func (s *ICPCAwardService) loadSyncableUser(
+	ctx context.Context,
+	siteUserID int64,
+) (model.User, error) {
+	user, err := s.loadUser(ctx, siteUserID)
+	if err != nil {
+		return model.User{}, err
+	}
+
+	if strings.TrimSpace(user.RealName) == "" {
+		return model.User{}, ValidationError{Message: "real_name is required before syncing awards"}
+	}
+
+	return user, nil
+}
+
 func normalizeListAwardRecordsInput(
 	input ListAwardRecordsInput,
 ) (repository.ListAwardRecordsFilter, error) {
@@ -233,7 +245,7 @@ func toAwardRecordInputs(
 	realName string,
 	records []integration.ICPCAwardFeedRecord,
 ) []repository.AwardRecordInput {
-	normalizedRealName := normalizePersonName(realName)
+	normalizedRealName := nameutil.NormalizePersonName(realName)
 	if normalizedRealName == "" {
 		return nil
 	}
@@ -269,43 +281,13 @@ func awardRecordMatchesRealName(
 	normalizedRealName string,
 	record integration.ICPCAwardFeedRecord,
 ) bool {
-	if len(record.NormalizedMembers) > 0 {
-		for _, member := range record.NormalizedMembers {
-			if member == normalizedRealName {
-				return true
-			}
-		}
-
-		return false
-	}
-
-	for _, member := range record.Members {
-		if normalizePersonName(member) == normalizedRealName {
+	for _, member := range record.NormalizedMembers {
+		if member == normalizedRealName {
 			return true
 		}
 	}
 
 	return false
-}
-
-func normalizePersonName(input string) string {
-	normalized := strings.ToLower(strings.TrimSpace(input))
-	if normalized == "" {
-		return ""
-	}
-
-	var builder strings.Builder
-	builder.Grow(len(normalized))
-	for _, r := range normalized {
-		switch {
-		case unicode.IsSpace(r), unicode.IsPunct(r), unicode.IsSymbol(r):
-			continue
-		default:
-			builder.WriteRune(r)
-		}
-	}
-
-	return builder.String()
 }
 
 func mapICPCAwardClientError(err error) error {

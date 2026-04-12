@@ -11,8 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"unicode"
 
+	"github.com/ICE-awa/acmrank/server/internal/nameutil"
 	"golang.org/x/sync/singleflight"
 )
 
@@ -236,7 +236,7 @@ func normalizeICPCAwardFeedRecord(
 			continue
 		}
 
-		normalized := normalizeICPCAwardMemberName(trimmed)
+		normalized := nameutil.NormalizePersonName(trimmed)
 		if normalized == "" {
 			continue
 		}
@@ -274,24 +274,4 @@ func normalizeICPCAwardFeedRecord(
 		SourceURL:         sourceURL,
 		Notes:             strings.TrimSpace(payload.Notes),
 	}, nil
-}
-
-func normalizeICPCAwardMemberName(input string) string {
-	normalized := strings.ToLower(strings.TrimSpace(input))
-	if normalized == "" {
-		return ""
-	}
-
-	var builder strings.Builder
-	builder.Grow(len(normalized))
-	for _, r := range normalized {
-		switch {
-		case unicode.IsSpace(r), unicode.IsPunct(r), unicode.IsSymbol(r):
-			continue
-		default:
-			builder.WriteRune(r)
-		}
-	}
-
-	return builder.String()
 }
