@@ -15,7 +15,36 @@ on:
 
 jobs:
   server:
+    name: server / ${{ matrix.check_name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - check_name: tidy module
+            uses_golangci: false
+            run: |
+              go mod tidy
+              git diff --exit-code
+          - check_name: gofmt
+            uses_golangci: false
+            run: |
+              go fmt ./...
+              git diff --exit-code
+          - check_name: go build
+            uses_golangci: false
+            run: go build ./...
+          - check_name: go vet
+            uses_golangci: false
+            run: go vet ./...
+          - check_name: go test
+            uses_golangci: false
+            run: go test ./...
+          - check_name: go test -race
+            uses_golangci: false
+            run: go test -race ./...
+          - check_name: golangci-lint
+            uses_golangci: true
     defaults:
       run:
         working-directory: server
@@ -26,31 +55,41 @@ jobs:
         with:
           go-version-file: server/go.mod
 
-      - name: Tidy module
-        run: go mod tidy
+      - name: Run server check
+        if: ${{ !matrix.uses_golangci }}
+        run: ${{ matrix.run }}
 
-      - name: Format
-        run: go fmt ./...
-
-      - name: Build
-        run: go build ./...
-
-      - name: Vet
-        run: go vet ./...
-
-      - name: Test
-        run: go test ./...
-
-      - name: Race test
-        run: go test -race ./...
-
-      - uses: golangci/golangci-lint-action@v8
+      - if: ${{ matrix.uses_golangci }}
+        uses: golangci/golangci-lint-action@v8
         with:
           working-directory: server
           version: latest
 
   web:
+    name: web / ${{ matrix.check_name }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - check_name: formatting
+            install_playwright: false
+            run: pnpm format:check
+          - check_name: lint
+            install_playwright: false
+            run: pnpm lint
+          - check_name: typecheck
+            install_playwright: false
+            run: pnpm typecheck
+          - check_name: unit tests
+            install_playwright: false
+            run: pnpm test:run
+          - check_name: build
+            install_playwright: false
+            run: pnpm build
+          - check_name: e2e tests
+            install_playwright: true
+            run: pnpm test:e2e
     defaults:
       run:
         working-directory: web
@@ -70,26 +109,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Check formatting
-        run: pnpm format:check
-
-      - name: Lint
-        run: pnpm lint
-
-      - name: Typecheck
-        run: pnpm typecheck
-
-      - name: Unit tests
-        run: pnpm test:run
-
-      - name: Build
-        run: pnpm build
-
       - name: Install Playwright browser
+        if: ${{ matrix.install_playwright }}
         run: pnpm exec playwright install --with-deps chromium
 
-      - name: E2E tests
-        run: pnpm test:e2e
+      - name: Run web check
+        run: ${{ matrix.run }}
 
   sync:
     runs-on: ubuntu-latest

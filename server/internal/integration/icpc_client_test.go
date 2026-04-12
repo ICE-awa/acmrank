@@ -14,6 +14,8 @@ func TestICPCAwardClientFetchAwardsParsesEnvelope(t *testing.T) {
 	t.Parallel()
 
 	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	now := time.Unix(1_701_200_000, 0).UTC()
+	client.now = func() time.Time { return now }
 	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/awards.json" {
 			t.Fatalf("path = %q, want %q", r.URL.Path, "/awards.json")
@@ -59,6 +61,8 @@ func TestICPCAwardClientFetchAwardsFallsBackToArrayPayload(t *testing.T) {
 	t.Parallel()
 
 	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	now := time.Unix(1_701_200_100, 0).UTC()
+	client.now = func() time.Time { return now }
 	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return jsonHTTPResponse(http.StatusOK, `[
   {
@@ -87,6 +91,8 @@ func TestICPCAwardClientFetchAwardsRejectsInvalidResponse(t *testing.T) {
 	t.Parallel()
 
 	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	now := time.Unix(1_701_200_200, 0).UTC()
+	client.now = func() time.Time { return now }
 	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return jsonHTTPResponse(http.StatusBadGateway, "boom"), nil
 	})
@@ -100,6 +106,8 @@ func TestICPCAwardClientFetchAwardsRejectsOversizedFeed(t *testing.T) {
 	t.Parallel()
 
 	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	now := time.Unix(1_701_200_300, 0).UTC()
+	client.now = func() time.Time { return now }
 	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
 		return jsonHTTPResponse(http.StatusOK, strings.Repeat(" ", maxICPCAwardFeedBytes+1)), nil
 	})
@@ -107,6 +115,97 @@ func TestICPCAwardClientFetchAwardsRejectsOversizedFeed(t *testing.T) {
 	_, err := client.FetchAwards(context.Background())
 	if !errors.Is(err, ErrICPCAwardsAPI) {
 		t.Fatalf("FetchAwards() error = %v, want %v", err, ErrICPCAwardsAPI)
+	}
+}
+
+func TestICPCAwardClientFetchAwardsSkipsMalformedRecords(t *testing.T) {
+	t.Parallel()
+
+	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	now := time.Unix(1_701_200_400, 0).UTC()
+	client.now = func() time.Time { return now }
+	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return jsonHTTPResponse(http.StatusOK, `{
+  "records": [
+    {
+      "contest_name": "Broken Regional",
+      "award_name": "Gold Medal",
+      "award_date": "2025/11/02",
+      "members": ["Alice"]
+    },
+    {
+      "contest_name": "ICPC Asia Regional 2025",
+      "award_name": "Silver Medal",
+      "award_date": "2025-11-02",
+      "members": ["Bob"]
+    }
+  ]
+}`), nil
+	})
+
+	records, err := client.FetchAwards(context.Background())
+	if err != nil {
+		t.Fatalf("FetchAwards() error = %v", err)
+	}
+
+	if len(records) != 1 || records[0].ContestName != "ICPC Asia Regional 2025" {
+		t.Fatalf("FetchAwards() records = %#v", records)
+	}
+}
+
+func TestICPCAwardClientFetchAwardsUsesInMemoryCache(t *testing.T) {
+	t.Parallel()
+
+	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	now := time.Unix(1_701_200_500, 0).UTC()
+	client.now = func() time.Time { return now }
+
+	requestCount := 0
+	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		requestCount++
+		return jsonHTTPResponse(http.StatusOK, `{
+  "records": [
+    {
+      "contest_name": "ICPC Asia Regional 2025",
+      "award_name": "Gold Medal",
+      "award_date": "2025-11-02",
+      "members": ["Alice"]
+    }
+  ]
+}`), nil
+	})
+
+	records, err := client.FetchAwards(context.Background())
+	if err != nil {
+		t.Fatalf("FetchAwards() first call error = %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("FetchAwards() first call len = %d, want 1", len(records))
+	}
+
+	records, err = client.FetchAwards(context.Background())
+	if err != nil {
+		t.Fatalf("FetchAwards() second call error = %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("FetchAwards() second call len = %d, want 1", len(records))
+	}
+
+	if requestCount != 1 {
+		t.Fatalf("requestCount after cached call = %d, want 1", requestCount)
+	}
+
+	now = now.Add(icpcAwardCacheTTL + time.Second)
+	records, err = client.FetchAwards(context.Background())
+	if err != nil {
+		t.Fatalf("FetchAwards() third call error = %v", err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("FetchAwards() third call len = %d, want 1", len(records))
+	}
+
+	if requestCount != 2 {
+		t.Fatalf("requestCount after cache expiry = %d, want 2", requestCount)
 	}
 }
 

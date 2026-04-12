@@ -6,18 +6,26 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 )
 
 var ErrICPCAwardsAPI = errors.New("icpc awards api error")
 
 const maxICPCAwardFeedBytes = 8 << 20
+const icpcAwardCacheTTL = 5 * time.Minute
 
 type ICPCAwardClient struct {
 	feedURL    string
 	httpClient *http.Client
+	now        func() time.Time
+
+	mu             sync.Mutex
+	cachedRecords  []ICPCAwardFeedRecord
+	cacheExpiresAt time.Time
 }
 
 type ICPCAwardFeedRecord struct {
@@ -50,10 +58,36 @@ func NewICPCAwardClient(feedURL string, timeout time.Duration) *ICPCAwardClient 
 		httpClient: &http.Client{
 			Timeout: timeout,
 		},
+		now: time.Now,
 	}
 }
 
 func (c *ICPCAwardClient) FetchAwards(
+	ctx context.Context,
+) ([]ICPCAwardFeedRecord, error) {
+	if records, ok := c.loadCachedAwards(); ok {
+		return cloneICPCAwardFeedRecords(records), nil
+	}
+
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if c.cacheIsFreshLocked() {
+		return cloneICPCAwardFeedRecords(c.cachedRecords), nil
+	}
+
+	records, err := c.fetchAwards(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	c.cachedRecords = cloneICPCAwardFeedRecords(records)
+	c.cacheExpiresAt = c.now().UTC().Add(icpcAwardCacheTTL)
+
+	return cloneICPCAwardFeedRecords(c.cachedRecords), nil
+}
+
+func (c *ICPCAwardClient) fetchAwards(
 	ctx context.Context,
 ) ([]ICPCAwardFeedRecord, error) {
 	if c.feedURL == "" {
@@ -94,13 +128,54 @@ func (c *ICPCAwardClient) FetchAwards(
 	for _, payload := range payloads {
 		record, err := normalizeICPCAwardFeedRecord(payload, c.feedURL)
 		if err != nil {
-			return nil, err
+			log.Printf(
+				"skip invalid icpc award feed record contest=%q award=%q: %v",
+				payload.ContestName,
+				payload.AwardName,
+				err,
+			)
+			continue
 		}
 
 		records = append(records, record)
 	}
 
 	return records, nil
+}
+
+func (c *ICPCAwardClient) loadCachedAwards() ([]ICPCAwardFeedRecord, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if !c.cacheIsFreshLocked() {
+		return nil, false
+	}
+
+	return cloneICPCAwardFeedRecords(c.cachedRecords), true
+}
+
+func (c *ICPCAwardClient) cacheIsFreshLocked() bool {
+	return !c.cacheExpiresAt.IsZero() && c.cacheExpiresAt.After(c.now().UTC())
+}
+
+func cloneICPCAwardFeedRecords(
+	records []ICPCAwardFeedRecord,
+) []ICPCAwardFeedRecord {
+	if records == nil {
+		return nil
+	}
+
+	cloned := make([]ICPCAwardFeedRecord, len(records))
+	copy(cloned, records)
+	for idx, record := range records {
+		if len(record.Members) == 0 {
+			continue
+		}
+
+		cloned[idx].Members = append([]string(nil), record.Members...)
+	}
+
+	return cloned
 }
 
 func decodeICPCAwardFeed(body []byte) ([]icpcAwardFeedRecordPayload, error) {
