@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/ICE-awa/acmrank/server/internal/appmeta"
 	authsupport "github.com/ICE-awa/acmrank/server/internal/auth"
@@ -13,7 +14,9 @@ import (
 	"github.com/ICE-awa/acmrank/server/internal/dependencies"
 	handlerv1 "github.com/ICE-awa/acmrank/server/internal/handler/v1"
 	"github.com/ICE-awa/acmrank/server/internal/integration"
+	"github.com/ICE-awa/acmrank/server/internal/model"
 	"github.com/ICE-awa/acmrank/server/internal/repository"
+	"github.com/ICE-awa/acmrank/server/internal/secret"
 	"github.com/ICE-awa/acmrank/server/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -111,11 +114,28 @@ func registerAPIRoutes(
 
 	userRepository := repository.NewUserRepository(dependencySet.Database())
 	platformAccountRepository := repository.NewPlatformAccountRepository(dependencySet.Database())
+	atCoderSyncRepository := repository.NewAtCoderSyncRepository(dependencySet.Database())
 	codeforcesSyncRepository := repository.NewCodeforcesSyncRepository(dependencySet.Database())
 	luoguSyncRepository := repository.NewLuoguSyncRepository(dependencySet.Database())
 	awardRepository := repository.NewAwardRepository(dependencySet.Database())
 	syncJobRepository := repository.NewSyncJobRepository(dependencySet.Database())
+	credentialRepository := repository.NewIntegrationCredentialRepository(dependencySet.Database())
+	alertRepository := repository.NewIntegrationAlertRepository(dependencySet.Database())
 	authStateRepository := repository.NewAuthStateRepository(dependencySet.Redis())
+
+	secretsCipher, err := secret.NewAEAD(cfg.SecretsEncryptionKey)
+	if err != nil {
+		return nil, fmt.Errorf("configure secrets cipher: %w", err)
+	}
+	if err := seedAtCoderCookieHeader(
+		context.Background(),
+		credentialRepository,
+		secretsCipher,
+		cfg.AtCoderCookieHeader,
+	); err != nil {
+		return nil, fmt.Errorf("seed atcoder cookie header: %w", err)
+	}
+
 	authService := service.NewAuthService(
 		userRepository,
 		authStateRepository,
@@ -128,9 +148,21 @@ func registerAPIRoutes(
 	userHandler := handlerv1.NewUserHandler()
 	platformAccountService := service.NewPlatformAccountService(platformAccountRepository)
 	platformAccountHandler := handlerv1.NewPlatformAccountHandler(platformAccountService)
+	atCoderClient := integration.NewAtCoderClient(
+		cfg.AtCoderBaseURL,
+		cfg.AtCoderTimeout,
+		atCoderCookieHeaderProvider(credentialRepository, secretsCipher),
+	)
 	codeforcesClient := integration.NewCodeforcesClient(cfg.CodeforcesAPIBaseURL, cfg.CodeforcesAPITimeout)
 	luoguClient := integration.NewLuoguClient(cfg.LuoguBaseURL, cfg.LuoguTimeout)
 	icpcAwardClient := integration.NewICPCAwardClient(cfg.ICPCAwardsFeedURL, cfg.ICPCTimeout)
+	atCoderService := service.NewAtCoderSyncService(
+		platformAccountRepository,
+		atCoderSyncRepository,
+		syncJobRepository,
+		alertRepository,
+		atCoderClient,
+	)
 	codeforcesService := service.NewCodeforcesSyncService(
 		platformAccountRepository,
 		codeforcesSyncRepository,
@@ -151,13 +183,16 @@ func registerAPIRoutes(
 	)
 	platformSyncService := service.NewPlatformSyncService(
 		platformAccountRepository,
+		atCoderService,
 		codeforcesService,
 		luoguService,
 	)
 	platformSyncHandler := handlerv1.NewPlatformSyncHandler(platformSyncService)
+	atCoderHandler := handlerv1.NewAtCoderHandler(atCoderService)
 	codeforcesHandler := handlerv1.NewCodeforcesHandler(codeforcesService)
 	luoguHandler := handlerv1.NewLuoguHandler(luoguService)
 	awardHandler := handlerv1.NewAwardHandler(awardService)
+	atCoderSyncRunner := service.NewAtCoderSyncJobRunner(atCoderService, 0)
 	codeforcesSyncRunner := service.NewCodeforcesSyncJobRunner(codeforcesService, 0)
 	luoguSyncRunner := service.NewLuoguSyncJobRunner(luoguService, 0)
 	icpcAwardSyncRunner := service.NewICPCAwardSyncJobRunner(awardService, 0)
@@ -173,6 +208,8 @@ func registerAPIRoutes(
 	usersGroup.GET("/me", authMiddleware.RequireAuthenticated(), userHandler.GetMe)
 	usersGroup.GET("/me/awards", authMiddleware.RequireAuthenticated(), awardHandler.ListMine)
 	usersGroup.POST("/me/awards/sync", authMiddleware.RequireAuthenticated(), awardHandler.Sync)
+	usersGroup.GET("/me/atcoder/problem-facts", authMiddleware.RequireAuthenticated(), atCoderHandler.ListProblemFacts)
+	usersGroup.GET("/me/atcoder/contest-ac-summaries", authMiddleware.RequireAuthenticated(), atCoderHandler.ListContestSummaries)
 	usersGroup.GET("/me/codeforces/problem-facts", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListProblemFacts)
 	usersGroup.GET("/me/codeforces/contest-ac-summaries", authMiddleware.RequireAuthenticated(), codeforcesHandler.ListContestSummaries)
 	usersGroup.GET("/me/luogu/problem-facts", authMiddleware.RequireAuthenticated(), luoguHandler.ListProblemFacts)
@@ -183,6 +220,8 @@ func registerAPIRoutes(
 	accountsGroup.POST("", platformAccountHandler.Create)
 	accountsGroup.DELETE("/:id", platformAccountHandler.Delete)
 	accountsGroup.POST("/:id/sync", platformSyncHandler.Sync)
+	accountsGroup.GET("/:id/atcoder/profile", atCoderHandler.GetLatestProfile)
+	accountsGroup.GET("/:id/atcoder/contest-histories", atCoderHandler.ListContestHistories)
 	accountsGroup.GET("/:id/codeforces/profile", codeforcesHandler.GetLatestProfile)
 	accountsGroup.GET("/:id/codeforces/contest-histories", codeforcesHandler.ListContestHistories)
 	accountsGroup.GET("/:id/luogu/profile", luoguHandler.GetLatestProfile)
@@ -197,6 +236,9 @@ func registerAPIRoutes(
 
 	return []func(context.Context){
 		func(ctx context.Context) {
+			atCoderSyncRunner.Start(ctx)
+		},
+		func(ctx context.Context) {
 			codeforcesSyncRunner.Start(ctx)
 		},
 		func(ctx context.Context) {
@@ -206,6 +248,48 @@ func registerAPIRoutes(
 			icpcAwardSyncRunner.Start(ctx)
 		},
 	}, nil
+}
+
+func seedAtCoderCookieHeader(
+	ctx context.Context,
+	credentialRepository *repository.IntegrationCredentialRepository,
+	cipher *secret.AEAD,
+	cookieHeader string,
+) error {
+	cookieHeader = strings.TrimSpace(cookieHeader)
+	if cookieHeader == "" {
+		return nil
+	}
+
+	ciphertext, err := cipher.Encrypt([]byte(cookieHeader))
+	if err != nil {
+		return err
+	}
+
+	return credentialRepository.Upsert(ctx, repository.UpsertIntegrationCredentialParams{
+		Integration:   string(model.IntegrationAtCoderMain),
+		CredentialKey: "cookie_header",
+		Ciphertext:    ciphertext,
+	})
+}
+
+func atCoderCookieHeaderProvider(
+	credentialRepository *repository.IntegrationCredentialRepository,
+	cipher *secret.AEAD,
+) integration.AtCoderCookieHeaderProvider {
+	return func(ctx context.Context) (string, error) {
+		ciphertext, err := credentialRepository.Get(ctx, string(model.IntegrationAtCoderMain), "cookie_header")
+		if err != nil {
+			return "", err
+		}
+
+		plaintext, err := cipher.Decrypt(ciphertext)
+		if err != nil {
+			return "", err
+		}
+
+		return string(plaintext), nil
+	}
 }
 
 func (a *App) Run(ctx context.Context) error {

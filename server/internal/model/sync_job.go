@@ -5,6 +5,7 @@ import "time"
 type SyncJobType string
 
 const (
+	SyncJobTypeAtCoder    SyncJobType = "atcoder_sync"
 	SyncJobTypeCodeforces SyncJobType = "codeforces_sync"
 	SyncJobTypeLuogu      SyncJobType = "luogu_sync"
 	SyncJobTypeICPCAward  SyncJobType = "icpc_award_sync"

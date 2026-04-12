@@ -62,6 +62,8 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
   - `GET /api/v1/users/me`
   - `GET /api/v1/users/me/awards`
   - `POST /api/v1/users/me/awards/sync`
+  - `GET /api/v1/users/me/atcoder/problem-facts`
+  - `GET /api/v1/users/me/atcoder/contest-ac-summaries`
   - `GET /api/v1/users/me/codeforces/problem-facts`
   - `GET /api/v1/users/me/codeforces/contest-ac-summaries`
   - `GET /api/v1/users/me/luogu/problem-facts`
@@ -69,6 +71,8 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
   - `POST /api/v1/accounts`
   - `DELETE /api/v1/accounts/:id`
   - `POST /api/v1/accounts/:id/sync`
+  - `GET /api/v1/accounts/:id/atcoder/profile`
+  - `GET /api/v1/accounts/:id/atcoder/contest-histories`
   - `GET /api/v1/accounts/:id/codeforces/profile`
   - `GET /api/v1/accounts/:id/codeforces/contest-histories`
   - `GET /api/v1/accounts/:id/luogu/profile`
@@ -78,6 +82,12 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
   - `POST /api/v1/admin/platform-accounts/:id/reject`
 - 账号列表接口支持 `limit` 与 `offset` 查询参数；当前默认 `limit=50`，并且会把超大请求裁剪到 `100`。
 - `POST /api/v1/accounts/:id/sync` 当前会按账号平台分发到对应的异步同步任务，并返回一个已入队的 `sync_job`。
+- `AtCoder` 主链路当前会写入最新 profile、原始 `AC` 事件、`problem_facts`、`contest_ac_summaries` 和比赛历史。
+- `AtCoder` 主链路当前使用：
+  - 公开 `profile` 页抓算法 rating
+  - 官方 `history/json` 抓比赛历史
+  - 携带运营 Cookie 的 `/contests/{contest}/submissions?f.User=<handle>` 抓按比赛展开的提交页并提取 `AC` 事实
+- `AtCoder` Cookie 目前通过 `ACMRANK_ATCODER_COOKIE_HEADER` 提供，并会在启动时使用 `ACMRANK_SECRETS_ENCRYPTION_KEY` 加密后写入数据库；后续管理端配置入口留到 `T15`。
 - `Codeforces` 同步会写入最新 profile、原始 `AC` 事件、`problem_facts`、`contest_ac_summaries` 和比赛历史。
 - `Luogu` 同步当前会写入最新 profile 与已通过题目的 `problem_facts`。
 - `ICPC` 奖项同步当前通过 `POST /api/v1/users/me/awards/sync` 触发，数据源是运营维护的 JSON feed；服务端按用户 `real_name` 匹配成员名单，并且不会覆盖 `is_manual=true` 的人工修正记录。
@@ -86,5 +96,6 @@ ACMRank 是一个面向华南师范大学校内使用的竞赛档案与训练排
 - 认证模型固定为 `JWT AT + RT + HttpOnly Cookie`。
 - 当前仓库尚未接入真实邮件投递能力，因此“邮箱验证基础流程”阶段会直接在注册响应里返回一次性的邮箱验证 token，便于本地联调与自动化测试。
 - 本地默认认证配置已写入 `.env.example`，生产环境必须覆盖默认密钥。
+- `ACMRANK_SECRETS_ENCRYPTION_KEY` 用于加密 `AtCoder` 运营 Cookie 等敏感配置，生产环境必须覆盖默认值。
 - `ICPC` 奖项 feed URL 通过 `ACMRANK_ICPC_AWARDS_FEED_URL` 配置，超时通过 `ACMRANK_ICPC_TIMEOUT` 配置。
 - 当前管理端审核接口通过 `ACMRANK_ADMIN_USERNAMES` 控制可访问的站内用户名列表，适合作为角色系统落地前的过渡方案。

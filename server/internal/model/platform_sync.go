@@ -3,9 +3,12 @@ package model
 import "time"
 
 const (
-	SyncSourceCodeforcesAPI = "codeforces_api"
-	SyncSourceLuoguUserInfo = "luogu_user_info"
-	SyncSourceLuoguPractice = "luogu_practice_page"
+	SyncSourceAtCoderProfilePage = "atcoder_profile_page"
+	SyncSourceAtCoderHistoryJSON = "atcoder_history_json"
+	SyncSourceAtCoderSubmission  = "atcoder_submission_page"
+	SyncSourceCodeforcesAPI      = "codeforces_api"
+	SyncSourceLuoguUserInfo      = "luogu_user_info"
+	SyncSourceLuoguPractice      = "luogu_practice_page"
 )
 
 type PlatformProfileSnapshot struct {

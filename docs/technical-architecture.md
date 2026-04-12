@@ -196,6 +196,11 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - 用户扩展只上传窗口内 `AC`，不是完整提交历史。
 - 服务端必须保存来源，并允许后续高可信来源纠正 `first_ac_at`。
 - 主链路、`Clist`、第三方 API 任一失效都要主动告警。
+- 当前已落地的主链路细化为：
+  - `GET /users/{handle}` 抓算法赛 profile 与当前/最高 rating
+  - `GET /users/{handle}/history/json` 抓官方比赛历史
+  - 基于 `history` 中的比赛列表，携带运营 `Cookie` 访问 `GET /contests/{contest}/submissions?f.User=<handle>` 抓按比赛展开的提交页，并从中提取 `AC` 事实
+- 运营 `Cookie` 当前通过环境变量注入，启动时加密写入 `integration_credentials`，后续管理端配置入口在 `T15` 补齐。
 
 ### 7.4 洛谷
 - 只维护一条稳定链路。
@@ -241,6 +246,8 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - `GET /api/v1/users/me`
 - `GET /api/v1/users/me/awards`
 - `POST /api/v1/users/me/awards/sync`
+- `GET /api/v1/users/me/atcoder/problem-facts`
+- `GET /api/v1/users/me/atcoder/contest-ac-summaries`
 - `GET /api/v1/users/me/codeforces/problem-facts`
 - `GET /api/v1/users/me/codeforces/contest-ac-summaries`
 - `GET /api/v1/users/me/luogu/problem-facts`
@@ -248,6 +255,8 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
 - `POST /api/v1/accounts`
 - `DELETE /api/v1/accounts/:id`
 - `POST /api/v1/accounts/:id/sync`
+- `GET /api/v1/accounts/:id/atcoder/profile`
+- `GET /api/v1/accounts/:id/atcoder/contest-histories`
 - `GET /api/v1/accounts/:id/codeforces/profile`
 - `GET /api/v1/accounts/:id/codeforces/contest-histories`
 - `GET /api/v1/accounts/:id/luogu/profile`
@@ -300,6 +309,21 @@ atcoder-extension -> api -> PostgreSQL / NATS / JetStream
   - `problem_facts`
 - 当前公开链路无法拿到逐题真实 `AC` 时间，因此 `problem_facts.first_ac_at` 在 `Luogu` 平台上暂时表示“首次被 ACMRank 观测到的时间”，后续接入更强链路后再回填真实值。
 - 当前异步执行方式与 `Codeforces` 一致：接口写入 `sync_jobs`，再由 `api` 进程内的后台 worker 轮询并处理 `Luogu` 同步任务。
+
+### 9.9 T10 当前落地说明
+- 当前 `AtCoder` 主链路已接入官方站点：
+  - `GET /users/{handle}` 解析当前算法 rating 与最高算法 rating
+  - `GET /users/{handle}/history/json` 拉取比赛历史
+  - `GET /contests/{contest}/submissions?f.User=<handle>` 在携带运营 Cookie 的前提下抓取每场比赛的提交页，并只保留 `AC` 记录
+- 当前 `AtCoder` 同步结果会直接写入：
+  - `platform_profile_snapshots`
+  - `accepted_event_raw`
+  - `problem_facts`
+  - `contest_ac_summaries`
+  - `platform_contest_histories`
+- 当前异步执行方式与 `Codeforces / Luogu` 一致：接口写入 `sync_jobs`，再由 `api` 进程内的后台 worker 轮询并处理 `AtCoder` 同步任务。
+- 当前运营 Cookie 通过 `ACMRANK_ATCODER_COOKIE_HEADER` 提供，并在启动时使用 `ACMRANK_SECRETS_ENCRYPTION_KEY` 加密写入 `integration_credentials`。
+- 当前告警骨架使用 `integration_alerts` 记录 `atcoder_main / atcoder_clist / atcoder_third_party` 三类链路；其中主链路失败已接入自动记录。
 
 ## 10. 前端结构
 

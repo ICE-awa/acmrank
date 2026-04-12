@@ -57,6 +57,7 @@ func writePlatformSyncError(c *gin.Context, err error) {
 	case errors.Is(err, service.ErrValidation):
 		statusCode = http.StatusBadRequest
 	case errors.Is(err, service.ErrPlatformAccountNotFound),
+		errors.Is(err, service.ErrAtCoderSyncDataNotFound),
 		errors.Is(err, service.ErrCodeforcesSyncDataNotFound),
 		errors.Is(err, service.ErrLuoguSyncDataNotFound):
 		statusCode = http.StatusNotFound
@@ -64,7 +65,8 @@ func writePlatformSyncError(c *gin.Context, err error) {
 		statusCode = http.StatusForbidden
 	case errors.Is(err, service.ErrPlatformAccountNotReady):
 		statusCode = http.StatusConflict
-	case errors.Is(err, service.ErrCodeforcesUpstream),
+	case errors.Is(err, service.ErrAtCoderUpstream),
+		errors.Is(err, service.ErrCodeforcesUpstream),
 		errors.Is(err, service.ErrLuoguUpstream):
 		statusCode = http.StatusBadGateway
 		message = "upstream service unavailable"

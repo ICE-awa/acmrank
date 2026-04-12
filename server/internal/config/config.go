@@ -30,7 +30,11 @@ type Config struct {
 	RefreshTokenTTL      time.Duration
 	EmailVerifyTTL       time.Duration
 	CookieSecure         bool
+	SecretsEncryptionKey string
 	AdminUsernames       []string
+	AtCoderBaseURL       string
+	AtCoderTimeout       time.Duration
+	AtCoderCookieHeader  string
 	CodeforcesAPIBaseURL string
 	CodeforcesAPITimeout time.Duration
 	LuoguBaseURL         string
@@ -89,6 +93,11 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		return Config{}, err
 	}
 
+	atCoderTimeout, err := durationValue("ACMRANK_ATCODER_TIMEOUT", 15*time.Second)
+	if err != nil {
+		return Config{}, err
+	}
+
 	codeforcesAPITimeout, err := durationValue("ACMRANK_CODEFORCES_API_TIMEOUT", 10*time.Second)
 	if err != nil {
 		return Config{}, err
@@ -129,7 +138,11 @@ func Load(service appmeta.ServiceName) (Config, error) {
 		RefreshTokenTTL:      refreshTokenTTL,
 		EmailVerifyTTL:       emailVerifyTTL,
 		CookieSecure:         cookieSecure,
+		SecretsEncryptionKey: stringValue("ACMRANK_SECRETS_ENCRYPTION_KEY", "acmrank-dev-secrets-key"),
 		AdminUsernames:       csvValue("ACMRANK_ADMIN_USERNAMES"),
+		AtCoderBaseURL:       stringValue("ACMRANK_ATCODER_BASE_URL", "https://atcoder.jp"),
+		AtCoderTimeout:       atCoderTimeout,
+		AtCoderCookieHeader:  stringValue("ACMRANK_ATCODER_COOKIE_HEADER", ""),
 		CodeforcesAPIBaseURL: stringValue("ACMRANK_CODEFORCES_API_BASE_URL", "https://codeforces.com/api"),
 		CodeforcesAPITimeout: codeforcesAPITimeout,
 		LuoguBaseURL:         stringValue("ACMRANK_LUOGU_BASE_URL", "https://www.luogu.com.cn"),

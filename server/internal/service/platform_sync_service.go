@@ -16,17 +16,20 @@ type PlatformSyncEnqueuer interface {
 
 type PlatformSyncService struct {
 	accountStore     PlatformSyncAccountStore
+	atcoderSyncer    PlatformSyncEnqueuer
 	codeforcesSyncer PlatformSyncEnqueuer
 	luoguSyncer      PlatformSyncEnqueuer
 }
 
 func NewPlatformSyncService(
 	accountStore PlatformSyncAccountStore,
+	atcoderSyncer PlatformSyncEnqueuer,
 	codeforcesSyncer PlatformSyncEnqueuer,
 	luoguSyncer PlatformSyncEnqueuer,
 ) *PlatformSyncService {
 	return &PlatformSyncService{
 		accountStore:     accountStore,
+		atcoderSyncer:    atcoderSyncer,
 		codeforcesSyncer: codeforcesSyncer,
 		luoguSyncer:      luoguSyncer,
 	}
@@ -47,6 +50,8 @@ func (s *PlatformSyncService) EnqueueSync(
 	}
 
 	switch account.Platform {
+	case model.PlatformAtCoder:
+		return s.atcoderSyncer.EnqueueSync(ctx, siteUserID, accountID)
 	case model.PlatformCodeforces:
 		return s.codeforcesSyncer.EnqueueSync(ctx, siteUserID, accountID)
 	case model.PlatformLuogu:

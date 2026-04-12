@@ -120,6 +120,11 @@
   - `first_ac_at`
   - 某场比赛 `AC` 了哪些题
 - 这是默认生产链路，扩展不应替代它。
+- 当前已实现的官方抓取入口为：
+  - `GET /users/{handle}`：解析算法赛当前/最高 rating
+  - `GET /users/{handle}/history/json`：解析比赛历史
+  - `GET /contests/{contest}/submissions?f.User=<handle>`：在携带运营 Cookie 的前提下，逐比赛抓提交页并提取 `AC` 记录
+- 当前运营 Cookie 通过 `ACMRANK_ATCODER_COOKIE_HEADER` 输入，并在服务启动时使用 `ACMRANK_SECRETS_ENCRYPTION_KEY` 加密写入 `integration_credentials`。
 
 ### 6.4 Clist 兜底职责
 - 回填 `problem.rating`
@@ -150,6 +155,7 @@
 - 主链路失效告警
 - `Clist` 失效告警
 - 第三方 API 失效告警
+- 当前主链路失败已写入 `integration_alerts`，`Clist` 与第三方 API 的告警骨架也已预留相同记录入口，后续在对应链路落地时接入。
 
 ## 7. 洛谷
 

@@ -57,8 +57,24 @@ func TestLoadDefaultsForAPI(t *testing.T) {
 		t.Fatal("Load() CookieSecure should default to false")
 	}
 
+	if cfg.SecretsEncryptionKey != "acmrank-dev-secrets-key" {
+		t.Fatalf("Load() SecretsEncryptionKey = %q, want %q", cfg.SecretsEncryptionKey, "acmrank-dev-secrets-key")
+	}
+
 	if len(cfg.AdminUsernames) != 0 {
 		t.Fatalf("Load() AdminUsernames len = %d, want 0", len(cfg.AdminUsernames))
+	}
+
+	if cfg.AtCoderBaseURL != "https://atcoder.jp" {
+		t.Fatalf("Load() AtCoderBaseURL = %q, want %q", cfg.AtCoderBaseURL, "https://atcoder.jp")
+	}
+
+	if cfg.AtCoderTimeout != 15*time.Second {
+		t.Fatalf("Load() AtCoderTimeout = %v, want %v", cfg.AtCoderTimeout, 15*time.Second)
+	}
+
+	if cfg.AtCoderCookieHeader != "" {
+		t.Fatalf("Load() AtCoderCookieHeader = %q, want empty string", cfg.AtCoderCookieHeader)
 	}
 
 	if cfg.CodeforcesAPIBaseURL != "https://codeforces.com/api" {
@@ -98,7 +114,11 @@ func TestLoadHonorsOverrides(t *testing.T) {
 	t.Setenv("ACMRANK_AUTH_REFRESH_TOKEN_TTL", "240h")
 	t.Setenv("ACMRANK_AUTH_EMAIL_VERIFY_TTL", "48h")
 	t.Setenv("ACMRANK_AUTH_COOKIE_SECURE", "true")
+	t.Setenv("ACMRANK_SECRETS_ENCRYPTION_KEY", "integration-secret")
 	t.Setenv("ACMRANK_ADMIN_USERNAMES", "admin, operator ")
+	t.Setenv("ACMRANK_ATCODER_BASE_URL", "https://atcoder.example.test")
+	t.Setenv("ACMRANK_ATCODER_TIMEOUT", "13s")
+	t.Setenv("ACMRANK_ATCODER_COOKIE_HEADER", "REVEL_SESSION=example")
 	t.Setenv("ACMRANK_CODEFORCES_API_BASE_URL", "https://cf.example.test/api")
 	t.Setenv("ACMRANK_CODEFORCES_API_TIMEOUT", "14s")
 	t.Setenv("ACMRANK_LUOGU_BASE_URL", "https://luogu.example.test")
@@ -155,8 +175,24 @@ func TestLoadHonorsOverrides(t *testing.T) {
 		t.Fatal("Load() CookieSecure should honor override")
 	}
 
+	if cfg.SecretsEncryptionKey != "integration-secret" {
+		t.Fatalf("Load() SecretsEncryptionKey = %q, want %q", cfg.SecretsEncryptionKey, "integration-secret")
+	}
+
 	if len(cfg.AdminUsernames) != 2 || cfg.AdminUsernames[0] != "admin" || cfg.AdminUsernames[1] != "operator" {
 		t.Fatalf("Load() AdminUsernames = %#v, want [admin operator]", cfg.AdminUsernames)
+	}
+
+	if cfg.AtCoderBaseURL != "https://atcoder.example.test" {
+		t.Fatalf("Load() AtCoderBaseURL = %q, want %q", cfg.AtCoderBaseURL, "https://atcoder.example.test")
+	}
+
+	if cfg.AtCoderTimeout != 13*time.Second {
+		t.Fatalf("Load() AtCoderTimeout = %v, want %v", cfg.AtCoderTimeout, 13*time.Second)
+	}
+
+	if cfg.AtCoderCookieHeader != "REVEL_SESSION=example" {
+		t.Fatalf("Load() AtCoderCookieHeader = %q, want %q", cfg.AtCoderCookieHeader, "REVEL_SESSION=example")
 	}
 
 	if cfg.CodeforcesAPIBaseURL != "https://cf.example.test/api" {
