@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
 
 	"golang.org/x/sync/singleflight"
 )
@@ -32,13 +33,14 @@ type ICPCAwardClient struct {
 }
 
 type ICPCAwardFeedRecord struct {
-	ContestName string
-	AwardName   string
-	RankText    string
-	AwardDate   time.Time
-	Members     []string
-	SourceURL   string
-	Notes       string
+	ContestName       string
+	AwardName         string
+	RankText          string
+	AwardDate         time.Time
+	Members           []string
+	NormalizedMembers []string
+	SourceURL         string
+	Notes             string
 }
 
 type icpcAwardFeedEnvelope struct {
@@ -187,10 +189,17 @@ func cloneICPCAwardFeedRecords(
 	copy(cloned, records)
 	for idx, record := range records {
 		if len(record.Members) == 0 {
+			cloned[idx].Members = nil
+		} else {
+			cloned[idx].Members = append([]string(nil), record.Members...)
+		}
+
+		if len(record.NormalizedMembers) == 0 {
+			cloned[idx].NormalizedMembers = nil
 			continue
 		}
 
-		cloned[idx].Members = append([]string(nil), record.Members...)
+		cloned[idx].NormalizedMembers = append([]string(nil), record.NormalizedMembers...)
 	}
 
 	return cloned
@@ -220,16 +229,23 @@ func normalizeICPCAwardFeedRecord(
 	}
 
 	members := make([]string, 0, len(payload.Members))
+	normalizedMembers := make([]string, 0, len(payload.Members))
 	for _, member := range payload.Members {
 		trimmed := strings.TrimSpace(member)
 		if trimmed == "" {
 			continue
 		}
 
+		normalized := normalizeICPCAwardMemberName(trimmed)
+		if normalized == "" {
+			continue
+		}
+
 		members = append(members, trimmed)
+		normalizedMembers = append(normalizedMembers, normalized)
 	}
 
-	if len(members) == 0 {
+	if len(normalizedMembers) == 0 {
 		return ICPCAwardFeedRecord{}, fmt.Errorf("%w: award %q has no members", ErrICPCAwardsAPI, payload.ContestName)
 	}
 
@@ -249,12 +265,33 @@ func normalizeICPCAwardFeedRecord(
 	}
 
 	return ICPCAwardFeedRecord{
-		ContestName: contestName,
-		AwardName:   awardName,
-		RankText:    strings.TrimSpace(payload.RankText),
-		AwardDate:   awardDate.UTC(),
-		Members:     members,
-		SourceURL:   sourceURL,
-		Notes:       strings.TrimSpace(payload.Notes),
+		ContestName:       contestName,
+		AwardName:         awardName,
+		RankText:          strings.TrimSpace(payload.RankText),
+		AwardDate:         awardDate.UTC(),
+		Members:           members,
+		NormalizedMembers: normalizedMembers,
+		SourceURL:         sourceURL,
+		Notes:             strings.TrimSpace(payload.Notes),
 	}, nil
+}
+
+func normalizeICPCAwardMemberName(input string) string {
+	normalized := strings.ToLower(strings.TrimSpace(input))
+	if normalized == "" {
+		return ""
+	}
+
+	var builder strings.Builder
+	builder.Grow(len(normalized))
+	for _, r := range normalized {
+		switch {
+		case unicode.IsSpace(r), unicode.IsPunct(r), unicode.IsSymbol(r):
+			continue
+		default:
+			builder.WriteRune(r)
+		}
+	}
+
+	return builder.String()
 }

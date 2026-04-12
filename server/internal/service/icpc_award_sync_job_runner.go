@@ -56,6 +56,9 @@ func (r *ICPCAwardSyncJobRunner) drain(ctx context.Context) {
 		processed, err := r.processor.ProcessNextQueuedSync(ctx)
 		if err != nil {
 			log.Printf("icpc award sync runner error: %v", err)
+			if processed {
+				continue
+			}
 			return
 		}
 		if !processed {

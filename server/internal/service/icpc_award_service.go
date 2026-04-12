@@ -269,6 +269,16 @@ func awardRecordMatchesRealName(
 	normalizedRealName string,
 	record integration.ICPCAwardFeedRecord,
 ) bool {
+	if len(record.NormalizedMembers) > 0 {
+		for _, member := range record.NormalizedMembers {
+			if member == normalizedRealName {
+				return true
+			}
+		}
+
+		return false
+	}
+
 	for _, member := range record.Members {
 		if normalizePersonName(member) == normalizedRealName {
 			return true

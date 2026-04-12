@@ -53,6 +53,9 @@ func TestICPCAwardClientFetchAwardsParsesEnvelope(t *testing.T) {
 	if len(record.Members) != 2 || record.Members[1] != "Bob" {
 		t.Fatalf("Members = %#v", record.Members)
 	}
+	if len(record.NormalizedMembers) != 2 || record.NormalizedMembers[1] != "bob" {
+		t.Fatalf("NormalizedMembers = %#v", record.NormalizedMembers)
+	}
 
 	if got := record.AwardDate.Format(time.DateOnly); got != "2025-11-02" {
 		t.Fatalf("AwardDate = %q, want %q", got, "2025-11-02")

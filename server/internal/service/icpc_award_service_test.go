@@ -142,7 +142,11 @@ func TestICPCAwardServiceSyncMatchesRealNameAndReplacesAwards(t *testing.T) {
 						RankText:    "Rank 3",
 						AwardDate:   time.Date(2025, time.November, 2, 0, 0, 0, 0, time.UTC),
 						Members:     []string{"Alice  Zhang", "Bob Li"},
-						SourceURL:   "https://board.example.test/regional-2025",
+						NormalizedMembers: []string{
+							"alicezhang",
+							"bobli",
+						},
+						SourceURL: "https://board.example.test/regional-2025",
 					},
 					{
 						ContestName: "ICPC Asia Regional 2025",
@@ -150,13 +154,19 @@ func TestICPCAwardServiceSyncMatchesRealNameAndReplacesAwards(t *testing.T) {
 						RankText:    "Rank 3",
 						AwardDate:   time.Date(2025, time.November, 2, 0, 0, 0, 0, time.UTC),
 						Members:     []string{"Alice Zhang"},
-						SourceURL:   "https://board.example.test/regional-2025",
+						NormalizedMembers: []string{
+							"alicezhang",
+						},
+						SourceURL: "https://board.example.test/regional-2025",
 					},
 					{
 						ContestName: "ICPC EC Final 2024",
 						AwardName:   "Silver Medal",
 						AwardDate:   time.Date(2024, time.December, 1, 0, 0, 0, 0, time.UTC),
 						Members:     []string{"Carol"},
+						NormalizedMembers: []string{
+							"carol",
+						},
 					},
 				}, nil
 			},
@@ -277,6 +287,9 @@ func TestICPCAwardServiceProcessNextQueuedSyncClaimsICPCJobs(t *testing.T) {
 						AwardName:   "Gold Medal",
 						AwardDate:   time.Date(2025, time.November, 2, 0, 0, 0, 0, time.UTC),
 						Members:     []string{"Alice Zhang"},
+						NormalizedMembers: []string{
+							"alicezhang",
+						},
 					},
 				}, nil
 			},
@@ -291,5 +304,22 @@ func TestICPCAwardServiceProcessNextQueuedSyncClaimsICPCJobs(t *testing.T) {
 
 	if !processed || !markedSucceeded {
 		t.Fatalf("processed=%v markedSucceeded=%v, want true/true", processed, markedSucceeded)
+	}
+}
+
+func TestAwardRecordMatchesRealNameUsesPreNormalizedMembers(t *testing.T) {
+	t.Parallel()
+
+	matched := awardRecordMatchesRealName(
+		"alicezhang",
+		integration.ICPCAwardFeedRecord{
+			Members: []string{"not-a-match"},
+			NormalizedMembers: []string{
+				"alicezhang",
+			},
+		},
+	)
+	if !matched {
+		t.Fatal("awardRecordMatchesRealName() = false, want true")
 	}
 }
