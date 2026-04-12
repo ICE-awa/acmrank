@@ -70,6 +70,12 @@ func TestSyncJobRepositoryEnqueueReturnsExistingActiveJob(t *testing.T) {
 			if !strings.Contains(query, "status IN ('queued', 'running')") {
 				t.Fatalf("unexpected query: %q", query)
 			}
+			if !strings.Contains(query, "site_user_id = $2") {
+				t.Fatalf("expected site_user_id filter in query: %q", query)
+			}
+			if len(args) != 3 || args[0] != accountID || args[1] != siteUserID || args[2] != model.SyncJobTypeCodeforces {
+				t.Fatalf("active job args = %#v", args)
+			}
 
 			return stubRow{
 				scanFn: func(dest ...any) error {
@@ -92,7 +98,7 @@ func TestSyncJobRepositoryEnqueueReturnsExistingActiveJob(t *testing.T) {
 
 	job, err := repository.Enqueue(context.Background(), EnqueueSyncJobParams{
 		SiteUserID:        7,
-		PlatformAccountID: 8,
+		PlatformAccountID: &accountID,
 		Platform:          "codeforces",
 		JobType:           model.SyncJobTypeCodeforces,
 		ScheduledAt:       now,
@@ -102,6 +108,57 @@ func TestSyncJobRepositoryEnqueueReturnsExistingActiveJob(t *testing.T) {
 	}
 
 	if job.ID != 11 || job.Status != model.SyncJobStatusQueued {
+		t.Fatalf("Enqueue() job = %+v", job)
+	}
+}
+
+func TestSyncJobRepositoryEnqueueFiltersUserLevelJobsBySiteUserID(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_700_700_100, 0).UTC()
+	siteUserID := int64(7)
+	repository := NewSyncJobRepository(&stubSyncJobDB{
+		queryRowFn: func(_ context.Context, query string, args ...any) pgx.Row {
+			if !strings.Contains(query, "status IN ('queued', 'running')") {
+				t.Fatalf("unexpected query: %q", query)
+			}
+			if !strings.Contains(query, "site_user_id = $2") {
+				t.Fatalf("expected site_user_id filter in query: %q", query)
+			}
+			if len(args) != 3 || args[0] != nil || args[1] != siteUserID || args[2] != model.SyncJobTypeICPCAward {
+				t.Fatalf("active job args = %#v", args)
+			}
+
+			return stubRow{
+				scanFn: func(dest ...any) error {
+					assignSyncJobRow(dest, model.SyncJob{
+						ID:          15,
+						SiteUserID:  &siteUserID,
+						Platform:    model.AwardPlatformICPC,
+						JobType:     model.SyncJobTypeICPCAward,
+						Status:      model.SyncJobStatusRunning,
+						ScheduledAt: now,
+						CreatedAt:   now,
+						UpdatedAt:   now,
+					})
+					return nil
+				},
+			}
+		},
+	})
+
+	job, err := repository.Enqueue(context.Background(), EnqueueSyncJobParams{
+		SiteUserID:        siteUserID,
+		PlatformAccountID: nil,
+		Platform:          model.AwardPlatformICPC,
+		JobType:           model.SyncJobTypeICPCAward,
+		ScheduledAt:       now,
+	})
+	if err != nil {
+		t.Fatalf("Enqueue() error = %v", err)
+	}
+
+	if job.ID != 15 || job.JobType != model.SyncJobTypeICPCAward || job.SiteUserID == nil || *job.SiteUserID != siteUserID {
 		t.Fatalf("Enqueue() job = %+v", job)
 	}
 }

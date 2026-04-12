@@ -225,6 +225,9 @@ func TestLuoguSyncServiceEnqueueSyncUsesLuoguJobType(t *testing.T) {
 				if params.JobType != model.SyncJobTypeLuogu {
 					t.Fatalf("Enqueue() job type = %q, want %q", params.JobType, model.SyncJobTypeLuogu)
 				}
+				if params.PlatformAccountID == nil || *params.PlatformAccountID != 8 {
+					t.Fatalf("Enqueue() platform account id = %#v, want 8", params.PlatformAccountID)
+				}
 				return model.SyncJob{ID: 1, JobType: params.JobType}, nil
 			},
 			claimNextFn: func(context.Context, model.SyncJobType, time.Time) (model.SyncJob, error) {

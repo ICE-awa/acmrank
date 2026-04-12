@@ -97,9 +97,10 @@ func (s *CodeforcesSyncService) EnqueueSync(
 		return model.SyncJob{}, ErrPlatformAccountNotReady
 	}
 
+	jobAccountID := account.ID
 	job, err := s.jobStore.Enqueue(ctx, repository.EnqueueSyncJobParams{
 		SiteUserID:        siteUserID,
-		PlatformAccountID: account.ID,
+		PlatformAccountID: &jobAccountID,
 		Platform:          string(account.Platform),
 		JobType:           model.SyncJobTypeCodeforces,
 		ScheduledAt:       s.now().UTC(),

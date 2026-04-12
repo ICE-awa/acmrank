@@ -45,7 +45,7 @@ func (t pgxSyncJobTx) Rollback(ctx context.Context) error {
 
 type EnqueueSyncJobParams struct {
 	SiteUserID        int64
-	PlatformAccountID int64
+	PlatformAccountID *int64
 	Platform          string
 	JobType           model.SyncJobType
 	ScheduledAt       time.Time
@@ -74,6 +74,11 @@ func (r *SyncJobRepository) Enqueue(
 	ctx context.Context,
 	params EnqueueSyncJobParams,
 ) (model.SyncJob, error) {
+	var platformAccountID any
+	if params.PlatformAccountID != nil {
+		platformAccountID = *params.PlatformAccountID
+	}
+
 	activeJob, err := scanSyncJob(
 		r.db.QueryRow(
 			ctx,
@@ -81,12 +86,14 @@ func (r *SyncJobRepository) Enqueue(
        scheduled_at, started_at, finished_at, attempt_count, COALESCE(error_message, ''),
        created_at, updated_at
 FROM sync_jobs
-WHERE platform_account_id = $1
-  AND job_type = $2
+WHERE platform_account_id IS NOT DISTINCT FROM $1
+  AND site_user_id = $2
+  AND job_type = $3
   AND status IN ('queued', 'running')
 ORDER BY created_at DESC, id DESC
 LIMIT 1`,
-			params.PlatformAccountID,
+			platformAccountID,
+			params.SiteUserID,
 			params.JobType,
 		),
 	)
@@ -108,7 +115,7 @@ RETURNING id, site_user_id, platform_account_id, COALESCE(platform, ''), job_typ
           scheduled_at, started_at, finished_at, attempt_count, COALESCE(error_message, ''),
           created_at, updated_at`,
 			params.SiteUserID,
-			params.PlatformAccountID,
+			platformAccountID,
 			params.Platform,
 			params.JobType,
 			params.ScheduledAt.UTC(),
