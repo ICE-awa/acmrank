@@ -57,7 +57,7 @@ func TestAwardRepositoryReplaceAutoSyncByUserIDPreservesManualSlot(t *testing.T)
 
 	awardDate := time.Date(2025, time.November, 2, 0, 0, 0, 0, time.UTC)
 	deleteCalled := false
-	insertCalled := false
+	insertCalls := 0
 
 	repository := NewAwardRepository(&stubAwardDB{
 		queryFn: func(context.Context, string, ...any) (pgx.Rows, error) { return nil, nil },
@@ -72,8 +72,14 @@ func TestAwardRepositoryReplaceAutoSyncByUserIDPreservesManualSlot(t *testing.T)
 						t.Fatalf("DELETE args = %#v", args)
 					}
 				case strings.Contains(query, "INSERT INTO award_records"):
-					insertCalled = true
-					if len(args) != 9 || args[2] != "ICPC Asia Regional 2025" || args[3] != "Gold Medal" {
+					insertCalls++
+					if !strings.Contains(query, "$10") {
+						t.Fatalf("expected batched INSERT query, got %q", query)
+					}
+					if len(args) != 18 || args[2] != "ICPC Asia Regional 2025" || args[3] != "Gold Medal" {
+						t.Fatalf("INSERT args = %#v", args)
+					}
+					if args[11] != "ICPC EC Final 2024" || args[12] != "Silver Medal" {
 						t.Fatalf("INSERT args = %#v", args)
 					}
 				default:
@@ -97,14 +103,22 @@ func TestAwardRepositoryReplaceAutoSyncByUserIDPreservesManualSlot(t *testing.T)
 				Source:      "icpc_awards_feed",
 				SourceURL:   "https://board.example.test/regional-2025",
 			},
+			{
+				ContestName: "ICPC EC Final 2024",
+				AwardName:   "Silver Medal",
+				RankText:    "Rank 5",
+				AwardDate:   time.Date(2024, time.December, 1, 0, 0, 0, 0, time.UTC),
+				Source:      "icpc_awards_feed",
+				SourceURL:   "https://board.example.test/final-2024",
+			},
 		},
 	})
 	if err != nil {
 		t.Fatalf("ReplaceAutoSyncByUserID() error = %v", err)
 	}
 
-	if !deleteCalled || !insertCalled {
-		t.Fatalf("deleteCalled=%v insertCalled=%v, want both true", deleteCalled, insertCalled)
+	if !deleteCalled || insertCalls != 1 {
+		t.Fatalf("deleteCalled=%v insertCalls=%d, want true/1", deleteCalled, insertCalls)
 	}
 }
 

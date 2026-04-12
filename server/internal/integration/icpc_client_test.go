@@ -96,6 +96,20 @@ func TestICPCAwardClientFetchAwardsRejectsInvalidResponse(t *testing.T) {
 	}
 }
 
+func TestICPCAwardClientFetchAwardsRejectsOversizedFeed(t *testing.T) {
+	t.Parallel()
+
+	client := NewICPCAwardClient("https://icpc.example.test/awards.json", 5*time.Second)
+	client.httpClient.Transport = icpcRoundTripFunc(func(r *http.Request) (*http.Response, error) {
+		return jsonHTTPResponse(http.StatusOK, strings.Repeat(" ", maxICPCAwardFeedBytes+1)), nil
+	})
+
+	_, err := client.FetchAwards(context.Background())
+	if !errors.Is(err, ErrICPCAwardsAPI) {
+		t.Fatalf("FetchAwards() error = %v, want %v", err, ErrICPCAwardsAPI)
+	}
+}
+
 type icpcRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f icpcRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {

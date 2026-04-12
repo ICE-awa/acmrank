@@ -13,6 +13,8 @@ import (
 
 var ErrICPCAwardsAPI = errors.New("icpc awards api error")
 
+const maxICPCAwardFeedBytes = 8 << 20
+
 type ICPCAwardClient struct {
 	feedURL    string
 	httpClient *http.Client
@@ -75,9 +77,12 @@ func (c *ICPCAwardClient) FetchAwards(
 		return nil, fmt.Errorf("%w: request %s returned %s", ErrICPCAwardsAPI, c.feedURL, httpResponse.Status)
 	}
 
-	body, err := io.ReadAll(httpResponse.Body)
+	body, err := io.ReadAll(io.LimitReader(httpResponse.Body, maxICPCAwardFeedBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("%w: read %s: %w", ErrICPCAwardsAPI, c.feedURL, err)
+	}
+	if len(body) > maxICPCAwardFeedBytes {
+		return nil, fmt.Errorf("%w: read %s exceeded %d bytes", ErrICPCAwardsAPI, c.feedURL, maxICPCAwardFeedBytes)
 	}
 
 	payloads, err := decodeICPCAwardFeed(body)

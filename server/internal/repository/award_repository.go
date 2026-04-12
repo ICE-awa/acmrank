@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"strings"
 	"time"
 
 	"github.com/ICE-awa/acmrank/server/internal/model"
@@ -109,25 +111,9 @@ WHERE site_user_id = $1
 		return err
 	}
 
-	for _, record := range params.Records {
-		if _, err := tx.Exec(
-			ctx,
-			`INSERT INTO award_records (
-  site_user_id, platform, contest_name, award_name, rank_text, award_date,
-  source, source_url, is_manual, notes
-)
-VALUES ($1, $2, $3, $4, NULLIF($5, ''), $6, $7, NULLIF($8, ''), false, NULLIF($9, ''))
-ON CONFLICT (site_user_id, platform, contest_name, award_name, award_date) DO NOTHING`,
-			params.SiteUserID,
-			params.Platform,
-			record.ContestName,
-			record.AwardName,
-			record.RankText,
-			record.AwardDate.UTC(),
-			record.Source,
-			record.SourceURL,
-			record.Notes,
-		); err != nil {
+	if len(params.Records) > 0 {
+		insertQuery, insertArgs := buildAwardRecordInsertQuery(params)
+		if _, err := tx.Exec(ctx, insertQuery, insertArgs...); err != nil {
 			return err
 		}
 	}
@@ -208,4 +194,54 @@ func collectAwardRecords(rows pgx.Rows) ([]model.AwardRecord, error) {
 	}
 
 	return records, nil
+}
+
+func buildAwardRecordInsertQuery(params ReplaceAwardRecordsParams) (string, []any) {
+	var builder strings.Builder
+	builder.Grow(len(params.Records) * 96)
+	builder.WriteString(`INSERT INTO award_records (
+  site_user_id, platform, contest_name, award_name, rank_text, award_date,
+  source, source_url, is_manual, notes
+)
+VALUES `)
+
+	args := make([]any, 0, len(params.Records)*9)
+	for idx, record := range params.Records {
+		if idx > 0 {
+			builder.WriteString(",\n       ")
+		}
+
+		argBase := len(args) + 1
+		fmt.Fprintf(
+			&builder,
+			"($%d, $%d, $%d, $%d, NULLIF($%d, ''), $%d, $%d, NULLIF($%d, ''), false, NULLIF($%d, ''))",
+			argBase,
+			argBase+1,
+			argBase+2,
+			argBase+3,
+			argBase+4,
+			argBase+5,
+			argBase+6,
+			argBase+7,
+			argBase+8,
+		)
+
+		args = append(
+			args,
+			params.SiteUserID,
+			params.Platform,
+			record.ContestName,
+			record.AwardName,
+			record.RankText,
+			record.AwardDate.UTC(),
+			record.Source,
+			record.SourceURL,
+			record.Notes,
+		)
+	}
+
+	builder.WriteString(`
+ON CONFLICT (site_user_id, platform, contest_name, award_name, award_date) DO NOTHING`)
+
+	return builder.String(), args
 }
